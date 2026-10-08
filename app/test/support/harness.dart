@@ -28,7 +28,9 @@ bool _fontsLoaded = false;
 Future<void> loadFonts() async {
   if (_fontsLoaded) return;
   _fontsLoaded = true;
-  final root = Platform.environment['FLUTTER_ROOT'] ?? '/opt/homebrew/share/flutter';
+  // `flutter test` sets FLUTTER_ROOT; otherwise the tester sits at
+  // <root>/bin/cache/artifacts/engine/<platform>/flutter_tester.
+  final root = Platform.environment['FLUTTER_ROOT'] ?? File(Platform.resolvedExecutable).parent.parent.parent.parent.parent.parent.path;
   final material = '$root/bin/cache/artifacts/material_fonts';
   Future<ByteData> read(String path) async => ByteData.sublistView(await File(path).readAsBytes());
 
@@ -40,7 +42,8 @@ Future<void> loadFonts() async {
   await (FontLoader('MaterialIcons')..addFont(read('$material/MaterialIcons-Regular.otf'))).load();
   const mono = '/System/Library/Fonts/SFNSMono.ttf';
   if (File(mono).existsSync()) await (FontLoader('monospace')..addFont(read(mono))).load();
-  const cjk = '/Library/Fonts/Arial Unicode.ttf';
+  // Both ship with macOS itself, so CI runners have them too.
+  const cjk = '/System/Library/Fonts/Supplemental/Arial Unicode.ttf';
   if (File(cjk).existsSync()) await (FontLoader('CJK')..addFont(read(cjk))).load();
 }
 
