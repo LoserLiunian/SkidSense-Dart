@@ -113,6 +113,9 @@ class FakeHost {
   int maxOpen = 8;
   int maxChunk = 384 * 1024;
 
+  /// How long each `upload.chunk` takes to answer: a slow link.
+  Duration chunkDelay = Duration.zero;
+
   // Terminal.
   Future<void> Function()? beforeTuiOpenReply;
   final List<String> terminalInput = [];
@@ -229,6 +232,7 @@ class FakeHost {
           ok({'id': uploadId});
         }
       case 'upload.chunk':
+        if (chunkDelay > Duration.zero) await Future<void>.delayed(chunkDelay);
         final uploadId = params.str('id');
         final upload = uploadId == null ? null : uploads[uploadId];
         final offset = params.integer('offset');
@@ -357,7 +361,15 @@ class _Live {
   final Carrier carrier;
   final FrameSealer sealer;
 
-  void sendInner(String text) => carrier.send(OuterFrames.encode(sealer.seal(text).toJson()));
+  /// A reply racing the connection's end is dropped, as the desktop's would be.
+  void sendInner(String text) {
+    final frame = OuterFrames.encode(sealer.seal(text).toJson());
+    try {
+      carrier.send(frame);
+    } on ConnectionClosed {
+      // The far end is gone.
+    }
+  }
 }
 
 /// Routes each carrier request to a fake host, or fails, per route.
