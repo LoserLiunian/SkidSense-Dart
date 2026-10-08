@@ -374,7 +374,7 @@ class _Live {
 
 /// Routes each carrier request to a fake host, or fails, per route.
 class FakeCarriers implements CarrierFactory {
-  final List<Route> opened = [];
+  final List<HostRoute> opened = [];
   FakeHost? Function(RouteLan route) lan = (_) => null;
   FakeHost? Function() relay = () => null;
 
@@ -382,7 +382,7 @@ class FakeCarriers implements CarrierFactory {
   Set<String> blackhole = {};
 
   @override
-  Future<Carrier> open(Route route, CarrierTarget target, {required Duration timeout}) async {
+  Future<Carrier> open(HostRoute route, CarrierTarget target, {required Duration timeout}) async {
     opened.add(route);
     if (route is RouteLan && blackhole.contains(route.address)) {
       // Never answers; the caller's own bound gives up on it.

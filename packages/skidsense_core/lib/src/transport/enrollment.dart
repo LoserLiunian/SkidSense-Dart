@@ -16,7 +16,7 @@ sealed class EnrollProgress {
 
 final class EnrollTrying extends EnrollProgress {
   const EnrollTrying(this.route);
-  final Route route;
+  final HostRoute route;
 }
 
 /// The first visit (spec §4, `enroll` mode): the pairing code from the QR is

@@ -15,7 +15,7 @@ class RcException implements Exception {
   final String? message;
 
   /// The route this happened on, when one was involved.
-  final Route? route;
+  final HostRoute? route;
   final Object? cause;
 
   @override

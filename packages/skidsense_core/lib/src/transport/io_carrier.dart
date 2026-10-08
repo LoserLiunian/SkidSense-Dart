@@ -56,7 +56,7 @@ class IoCarrierFactory implements CarrierFactory {
   final Duration? pingInterval;
 
   @override
-  Future<Carrier> open(Route route, CarrierTarget target, {required Duration timeout}) async {
+  Future<Carrier> open(HostRoute route, CarrierTarget target, {required Duration timeout}) async {
     final deadline = DateTime.now().add(timeout);
     final Uri uri;
     final headers = <String, String>{};

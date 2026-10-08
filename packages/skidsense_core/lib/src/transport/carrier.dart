@@ -23,14 +23,14 @@ abstract interface class Carrier {
 }
 
 /// Where a carrier goes.
-sealed class Route {
-  const Route();
+sealed class HostRoute {
+  const HostRoute();
 
   /// For logs; the app words routes itself.
   String describe();
 }
 
-final class RouteLan extends Route {
+final class RouteLan extends HostRoute {
   const RouteLan(this.address, this.port);
 
   final String address;
@@ -49,7 +49,7 @@ final class RouteLan extends Route {
   String toString() => 'RouteLan($address, $port)';
 }
 
-final class RouteRelay extends Route {
+final class RouteRelay extends HostRoute {
   const RouteRelay();
 
   @override
@@ -80,7 +80,7 @@ class CarrierTarget {
 /// [timeout] and releases what it opened; the client adds its own bound and
 /// closes anything that arrives after it.
 abstract interface class CarrierFactory {
-  Future<Carrier> open(Route route, CarrierTarget target, {required Duration timeout});
+  Future<Carrier> open(HostRoute route, CarrierTarget target, {required Duration timeout});
 }
 
 /// The carrier could not be opened at all (refused, timed out, DNS…).
@@ -99,7 +99,7 @@ class CarrierUnavailable implements Exception {
 /// [CarrierFactory.open] bounded by [timeout] on the caller's side as well:
 /// a carrier that opens after the caller stopped waiting is closed, never
 /// leaked.
-Future<Carrier> openBounded(CarrierFactory carriers, Route route, CarrierTarget target, Duration timeout) {
+Future<Carrier> openBounded(CarrierFactory carriers, HostRoute route, CarrierTarget target, Duration timeout) {
   final completer = Completer<Carrier>();
   var done = false;
   final timer = Timer(timeout, () {

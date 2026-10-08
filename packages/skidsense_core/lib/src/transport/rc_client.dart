@@ -77,7 +77,7 @@ class HostEndpoint {
     return changed;
   }
 
-  List<Route> routes() => [
+  List<HostRoute> routes() => [
         if (_lanPort >= 1 && _lanPort <= 65535)
           for (final address in _known.toSet()) RouteLan(address, _lanPort),
         if (relayEnabled) const RouteRelay(),
@@ -151,7 +151,7 @@ final class ClientIdle extends ClientState {
 final class ClientConnecting extends ClientState {
   const ClientConnecting(this.via, this.attempt);
 
-  final Route? via;
+  final HostRoute? via;
   final int attempt;
 }
 
@@ -159,7 +159,7 @@ final class ClientConnected extends ClientState {
   const ClientConnected(this.welcome, this.route);
 
   final Welcome welcome;
-  final Route route;
+  final HostRoute route;
 }
 
 /// Will retry by itself after [retryIn].
@@ -206,13 +206,13 @@ sealed class _Opening {}
 
 final class _Opened extends _Opening {
   _Opened(this.route, this.carrier);
-  final Route route;
+  final HostRoute route;
   final Carrier carrier;
 }
 
 final class _OpenFailed extends _Opening {
   _OpenFailed(this.route, this.error);
-  final Route route;
+  final HostRoute route;
   final Object error;
 }
 
@@ -268,7 +268,7 @@ class RcClient {
 
   /// The route the last connection came up on: a relay success starts the
   /// relay at once next time.
-  Route? _lastGood;
+  HostRoute? _lastGood;
 
   /// Set while a relay connection is being swapped for a LAN one, so the drop
   /// is not reported.
@@ -411,7 +411,7 @@ class RcClient {
 
     // Routes that failed this round — to open, or after opening — are not
     // raced again in it.
-    final dead = <Route>{};
+    final dead = <HostRoute>{};
     var anyLanOpened = false;
     while (true) {
       final remaining = routes.where((route) => !dead.contains(route)).toList();
@@ -484,7 +484,7 @@ class RcClient {
     return _Retry(lastError, freshGrant: false);
   }
 
-  static Object _attribute(Object error, Route route) => switch (error) {
+  static Object _attribute(Object error, HostRoute route) => switch (error) {
         RcException(route: null) => RcException(error.code, detail: error.detail, message: error.message, route: route, cause: error),
         RcException() => error,
         CryptoError(:final code) => RcException(code, route: route, cause: error),
@@ -493,7 +493,7 @@ class RcClient {
         _ => RcException('unreachable', route: route, cause: error),
       };
 
-  Future<Carrier> _openBounded(Route route, Duration timeout) =>
+  Future<Carrier> _openBounded(HostRoute route, Duration timeout) =>
       openBounded(_carriers, route, CarrierTarget(_endpoint.hostId, _endpoint.deviceId), timeout);
 
   /// Open the first carrier any of [routes] can give.
@@ -504,15 +504,15 @@ class RcClient {
   /// connect away from home. The relay joins after a head start, or at once
   /// when it is what worked last time, or as soon as every LAN address has
   /// failed. The first carrier to open wins; one that opens late is closed.
-  Future<_Opened?> _openFastest(List<Route> routes, int attempt, void Function(Route, Object) failed) async {
+  Future<_Opened?> _openFastest(List<HostRoute> routes, int attempt, void Function(HostRoute, Object) failed) async {
     final lan = routes.whereType<RouteLan>().toList();
-    final Route? relay = routes.whereType<RouteRelay>().firstOrNull;
+    final HostRoute? relay = routes.whereType<RouteRelay>().firstOrNull;
     final outcomes = AsyncQueue<_Opening>();
     var decided = false;
     var running = 0;
     var relayStarted = false;
 
-    void open(Route route) {
+    void open(HostRoute route) {
       running += 1;
       _state.value = ClientConnecting(route, attempt);
       final timeout = route is RouteLan ? config.lanConnectTimeout : config.relayConnectTimeout;
@@ -658,7 +658,7 @@ class RcClient {
       };
 
   /// The route the connection is up on, or null when it is not.
-  Route? get route => switch (_state.value) {
+  HostRoute? get route => switch (_state.value) {
         ClientConnected(:final route) => route,
         _ => null,
       };

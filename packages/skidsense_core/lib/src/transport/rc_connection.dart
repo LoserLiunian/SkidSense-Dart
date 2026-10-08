@@ -64,7 +64,7 @@ class RcConnection {
   final FrameSealer _sealer;
   final FrameOpener _opener;
   final Welcome welcome;
-  final Route route;
+  final HostRoute route;
   final ConnectionConfig _config;
 
   int _nextId = 1;
@@ -98,7 +98,7 @@ class RcConnection {
   /// [CryptoError] for a failed confirmation, or [HandshakeClosed]).
   static Future<RcConnection> establish({
     required Carrier carrier,
-    required Route route,
+    required HostRoute route,
     required Initiator initiator,
     String? grant,
     String? ticket,
@@ -131,7 +131,7 @@ class RcConnection {
 
   static Future<RcConnection> _handshake(
     Carrier carrier,
-    Route route,
+    HostRoute route,
     Initiator initiator,
     String? grant,
     String? ticket,
@@ -194,7 +194,7 @@ class RcConnection {
     }
   }
 
-  static Future<OuterFrame> _receiveOuter(Carrier carrier, Route route) async {
+  static Future<OuterFrame> _receiveOuter(Carrier carrier, HostRoute route) async {
     final text = await carrier.receive();
     if (text == null) throw HandshakeClosed('peer-closed', route: route);
     final frame = OuterFrames.parse(text);
@@ -209,7 +209,7 @@ class RcConnection {
 
   /// A `relay-error` the relay sent before it closed, if one is waiting (or
   /// arrives at once).
-  static Future<RelayRejected?> _queuedRelayError(Carrier carrier, Route route) async {
+  static Future<RelayRejected?> _queuedRelayError(Carrier carrier, HostRoute route) async {
     if (route is! RouteRelay) return null;
     try {
       final text = await carrier.receive(timeout: const Duration(milliseconds: 500));

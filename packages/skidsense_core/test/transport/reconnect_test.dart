@@ -45,7 +45,7 @@ class _OfflineThenUp implements CarrierFactory {
   int offline;
 
   @override
-  Future<Carrier> open(Route route, CarrierTarget target, {required Duration timeout}) async {
+  Future<Carrier> open(HostRoute route, CarrierTarget target, {required Duration timeout}) async {
     if (offline > 0) {
       offline -= 1;
       return ClosedByRelay('host-offline');
