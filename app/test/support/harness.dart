@@ -1,0 +1,158 @@
+import 'dart:convert';
+import 'dart:io';
+
+import 'package:flutter/services.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:http/http.dart' as http;
+import 'package:http/testing.dart';
+import 'package:skidsense_app/app.dart';
+import 'package:skidsense_app/l10n/gen/app_localizations.dart';
+import 'package:skidsense_app/platform/device.dart';
+import 'package:skidsense_app/state/appearance.dart';
+import 'package:skidsense_app/state/scope.dart';
+import 'package:skidsense_app/ui/material.dart';
+import 'package:skidsense_app/ui/theme/app_theme.dart';
+import 'package:skidsense_app/ui/theme/tokens.dart';
+import 'package:skidsense_core/skidsense_core.dart';
+
+const testBase = 'https://ai.surise.cn';
+
+/// Golden images depend on the fonts installed; they are made and compared
+/// on macOS only.
+final bool goldensSupported = Platform.isMacOS;
+
+bool _fontsLoaded = false;
+
+/// Roboto, the Material icons and a CJK font, so goldens show real text
+/// instead of the test font's boxes.
+Future<void> loadFonts() async {
+  if (_fontsLoaded) return;
+  _fontsLoaded = true;
+  final root = Platform.environment['FLUTTER_ROOT'] ?? '/opt/homebrew/share/flutter';
+  final material = '$root/bin/cache/artifacts/material_fonts';
+  Future<ByteData> read(String path) async => ByteData.sublistView(await File(path).readAsBytes());
+
+  final roboto = FontLoader('Roboto');
+  for (final weight in ['Regular', 'Medium', 'Bold', 'Light']) {
+    roboto.addFont(read('$material/Roboto-$weight.ttf'));
+  }
+  await roboto.load();
+  await (FontLoader('MaterialIcons')..addFont(read('$material/MaterialIcons-Regular.otf'))).load();
+  const mono = '/System/Library/Fonts/SFNSMono.ttf';
+  if (File(mono).existsSync()) await (FontLoader('monospace')..addFont(read(mono))).load();
+  const cjk = '/Library/Fonts/Arial Unicode.ttf';
+  if (File(cjk).existsSync()) await (FontLoader('CJK')..addFont(read(cjk))).load();
+}
+
+/// An in-memory backend: answers what the screens ask for.
+class FakeBackend {
+  final List<HostRow> hosts = [];
+  final List<Map<String, Object?>> devices = [];
+
+  static String ok(Object? data) => jsonEncode({'success': true, 'message': '', 'data': data});
+
+  http.Client client() => MockClient((request) async {
+        final path = request.url.path;
+        final body = switch (path) {
+          '/api/status' => ok({'turnstile_check': false, 'geetest_check': false, 'system_name': 'Surise'}),
+          '/api/companion/hosts' => ok([
+              for (final host in hosts)
+                {
+                  'host_id': host.hostId,
+                  'name': host.name,
+                  'platform': host.platform,
+                  'online': host.online,
+                  'lan_addrs': host.lanAddrs,
+                  'lan_port': host.lanPort,
+                  'last_seen_at': host.lastSeenAt,
+                },
+            ]),
+          '/api/companion/config' => ok({'enabled': true}),
+          _ when path.endsWith('/devices') => ok(devices),
+          _ => jsonEncode({'success': false, 'message': 'not found', 'data': null}),
+        };
+        return http.Response(body, 200, headers: {'content-type': 'application/json; charset=utf-8'});
+      });
+}
+
+class _NoCarriers implements CarrierFactory {
+  @override
+  Future<Carrier> open(HostRoute route, CarrierTarget target, {required Duration timeout}) async =>
+      throw const CarrierUnavailable('test');
+}
+
+/// The real controller over [FakeBackend] and in-memory stores.
+class TestServices {
+  TestServices({Appearance appearance = const Appearance()})
+      : appearance = AppearanceController(null)..value = appearance {
+    controller = AppController(
+      backend: BackendClient(http: backend.client(), secrets: secrets, defaultBaseUrl: testBase),
+      carriers: _NoCarriers(),
+      secrets: secrets,
+      files: files,
+      platformName: 'android',
+      deviceModel: 'Pixel 9 Pro XL',
+    );
+    services = AppServices(
+      controller: controller,
+      appearance: this.appearance,
+      biometrics: Biometrics(),
+      links: DeepLinks(),
+      device: const DeviceFacts(platform: 'android', model: 'Pixel 9 Pro XL', appVersion: '1.0.0'),
+    );
+  }
+
+  final FakeBackend backend = FakeBackend();
+  final MemorySecretStore secrets = MemorySecretStore();
+  final MemoryFileStore files = MemoryFileStore();
+  final AppearanceController appearance;
+  late final AppController controller;
+  late final AppServices services;
+
+  /// A stored session, as a phone signed in before a restart has.
+  Future<void> signIn({String username = 'liunian'}) => secrets.putString(
+        'auth-session',
+        jsonEncode(AuthSession(
+          baseUrl: testBase,
+          accessToken: 'tok',
+          accessExpiresAt: DateTime.now().millisecondsSinceEpoch + 3600000,
+          refreshCookie: 'cookie',
+          sessionId: 'sess',
+          userId: 7,
+          username: username,
+        ).toJson()),
+      );
+
+  Future<void> pair(List<PairedHost> hosts) =>
+      files.write('paired-hosts.json', jsonEncode([for (final host in hosts) host.toJson()]));
+}
+
+/// [child] in the app's own theme, localisations and scope.
+Widget harness(
+  TestServices services,
+  Widget child, {
+  DesignStyle style = DesignStyle.expressive,
+  Brightness brightness = Brightness.light,
+  Locale locale = const Locale('en'),
+}) {
+  final appearance = services.appearance.value = services.appearance.value.copyWith(style: style);
+  final theme = AppTheme.build(style, AppTheme.scheme(appearance, brightness), fontFamilyFallback: const ['CJK']);
+  return AppScope(
+    services: services.services,
+    child: MaterialApp(
+      debugShowCheckedModeBanner: false,
+      theme: theme,
+      locale: locale,
+      supportedLocales: L10n.supportedLocales,
+      localizationsDelegates: appLocalizationsDelegates,
+      home: child,
+    ),
+  );
+}
+
+/// Phone size, at the emulator's density.
+void phoneSurface(WidgetTester tester, {Size size = const Size(412, 915)}) {
+  tester.view.physicalSize = size * 2.625;
+  tester.view.devicePixelRatio = 2.625;
+  addTearDown(tester.view.reset);
+}

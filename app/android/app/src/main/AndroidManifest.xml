@@ -1,21 +1,50 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <!--
+      INTERNET is needed for both carriers: the relay WebSocket to the backend,
+      and the LAN WebSocket straight to the desktop.
+    -->
+    <uses-permission android:name="android.permission.INTERNET" />
+    <!--
+      To notice a network change (joining Wi-Fi at home) and reconnect — or move
+      from the relay to the LAN — at once instead of after a backoff.
+    -->
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+    <!-- Scanning the pairing QR code on the desktop's screen. -->
+    <uses-permission android:name="android.permission.CAMERA" />
+    <uses-feature android:name="android.hardware.camera" android:required="false" />
+    <!-- The app lock. -->
+    <uses-permission android:name="android.permission.USE_BIOMETRIC" />
+
     <application
-        android:label="skidsense_app"
+        android:label="SkidSense"
         android:name="${applicationName}"
-        android:icon="@mipmap/ic_launcher">
+        android:icon="@mipmap/ic_launcher"
+        android:allowBackup="false"
+        android:fullBackupContent="false"
+        android:dataExtractionRules="@xml/data_extraction_rules"
+        android:networkSecurityConfig="@xml/network_security_config"
+        android:usesCleartextTraffic="true"
+        android:supportsRtl="true"
+        android:enableOnBackInvokedCallback="true">
+        <!--
+          singleTask is a tradeoff, kept knowingly: it is what makes a tapped
+          pairing link reach the running activity instead of a second one.
+          Its cost is the launcher's clear-top — a scanner or document picker
+          sitting on top is torn down when the user re-enters via the icon —
+          and any app able to fire a view intent can bring up the pairing
+          screen. That screen always asks before pairing, and a link already
+          acted on is not replayed (S32/S34).
+        -->
         <activity
             android:name=".MainActivity"
             android:exported="true"
-            android:launchMode="singleTop"
+            android:launchMode="singleTask"
             android:taskAffinity=""
             android:theme="@style/LaunchTheme"
             android:configChanges="orientation|keyboardHidden|keyboard|screenSize|smallestScreenSize|locale|layoutDirection|fontScale|screenLayout|density|uiMode"
             android:hardwareAccelerated="true"
             android:windowSoftInputMode="adjustResize">
-            <!-- Specifies an Android theme to apply to this Activity as soon as
-                 the Android process has started. This theme is visible to the user
-                 while the Flutter UI initializes. After that, this theme continues
-                 to determine the Window background behind the Flutter UI. -->
             <meta-data
               android:name="io.flutter.embedding.android.NormalTheme"
               android:resource="@style/NormalTheme"
@@ -24,18 +53,25 @@
                 <action android:name="android.intent.action.MAIN"/>
                 <category android:name="android.intent.category.LAUNCHER"/>
             </intent-filter>
+            <!--
+              The pairing link the desktop shows: `skidsense://pair/1?d=…`.
+              Tapping it opens the app rather than a browser.
+            -->
+            <intent-filter android:autoVerify="false">
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="skidsense" />
+            </intent-filter>
         </activity>
+        <!-- app_links reads deep links itself; Flutter's own handler would push routes. -->
+        <meta-data android:name="flutter_deeplinking_enabled" android:value="false" />
         <!-- Don't delete the meta-data below.
              This is used by the Flutter tool to generate GeneratedPluginRegistrant.java -->
         <meta-data
             android:name="flutterEmbedding"
             android:value="2" />
     </application>
-    <!-- Required to query activities that can process text, see:
-         https://developer.android.com/training/package-visibility and
-         https://developer.android.com/reference/android/content/Intent#ACTION_PROCESS_TEXT.
-
-         In particular, this is used by the Flutter engine in io.flutter.plugin.text.ProcessTextPlugin. -->
     <queries>
         <intent>
             <action android:name="android.intent.action.PROCESS_TEXT"/>
