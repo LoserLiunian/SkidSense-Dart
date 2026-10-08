@@ -68,6 +68,7 @@ class FakeBackend {
                 },
             ]),
           '/api/companion/config' => ok({'enabled': true}),
+          '/api/companion/grant' => ok({'grant': 'grant-token', 'expires_at': DateTime.now().millisecondsSinceEpoch ~/ 1000 + 3600}),
           _ when path.endsWith('/devices') => ok(devices),
           _ => jsonEncode({'success': false, 'message': 'not found', 'data': null}),
         };
@@ -83,11 +84,11 @@ class _NoCarriers implements CarrierFactory {
 
 /// The real controller over [FakeBackend] and in-memory stores.
 class TestServices {
-  TestServices({Appearance appearance = const Appearance()})
+  TestServices({Appearance appearance = const Appearance(), CarrierFactory? carriers})
       : appearance = AppearanceController(null)..value = appearance {
     controller = AppController(
       backend: BackendClient(http: backend.client(), secrets: secrets, defaultBaseUrl: testBase),
-      carriers: _NoCarriers(),
+      carriers: carriers ?? _NoCarriers(),
       secrets: secrets,
       files: files,
       platformName: 'android',
@@ -148,6 +149,22 @@ Widget harness(
       home: child,
     ),
   );
+}
+
+/// Advances the fake clock in steps: indicators loop forever, so
+/// pumpAndSettle would not return.
+Future<void> settle(WidgetTester tester, {int rounds = 15, Duration step = const Duration(milliseconds: 50)}) async {
+  for (var i = 0; i < rounds; i++) {
+    await tester.pump(step);
+  }
+}
+
+/// Pumps until [done], or fails after [max] steps.
+Future<void> pumpUntil(WidgetTester tester, bool Function() done, {int max = 400}) async {
+  for (var i = 0; i < max && !done(); i++) {
+    await tester.pump(const Duration(milliseconds: 50));
+  }
+  expect(done(), isTrue, reason: 'condition not reached in ${max * 50} ms of fake time');
 }
 
 /// Phone size, at the emulator's density.

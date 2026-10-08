@@ -326,6 +326,12 @@ abstract class L10n {
   /// **'Verification expired. Try again.'**
   String get captchaExpired;
 
+  /// No description provided for @captchaOnSignIn.
+  ///
+  /// In en, this message translates to:
+  /// **'A quick human check opens when you sign in.'**
+  String get captchaOnSignIn;
+
   /// No description provided for @passwordLoginDisabled.
   ///
   /// In en, this message translates to:

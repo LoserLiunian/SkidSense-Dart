@@ -14,22 +14,26 @@ const captchaSendJs = 'function skidsenseSend(value) { $captchaChannel.postMessa
 /// and the widget then fails visibly instead of running what the server sent.
 String captchaToken(String value) => RegExp(r'^[A-Za-z0-9_-]{1,128}$').hasMatch(value) ? value : '';
 
-/// GeeTest v4: the SDK draws its own captcha, and on success the four fields
-/// of `getValidate()` come back as JSON — what goes in the `geetest` query
-/// parameter of the login.
-String geeTestPage(String captchaId) => '''
+/// GeeTest v4 in its `bind` form: no widget on the page, the challenge
+/// opens at once over the whole view — which the app shows in a sheet when
+/// the user signs in. On success the four fields of `getValidate()` come
+/// back as JSON (the `geetest` query parameter of the login); closing gives
+/// `close`, a failure `err:<code>`.
+///
+/// [language] is GeeTest's code: `zho`, `zho-tw`, `eng`.
+String geeTestPage(String captchaId, {String language = 'eng'}) => '''
 <!doctype html><html><head>
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <script src="https://static.geetest.com/v4/gt4.js"></script>
-<style>html,body{margin:0;background:transparent;font-family:sans-serif}</style>
-</head><body><div id="box"></div>
+<style>html,body{margin:0;height:100%;background:transparent;font-family:sans-serif}</style>
+</head><body>
 <script>
   $captchaSendJs
-  initGeetest4({ captchaId: '${captchaToken(captchaId)}', product: 'float' }, function (captcha) {
-    captcha.appendTo('#box');
+  initGeetest4({ captchaId: '${captchaToken(captchaId)}', product: 'bind', mask: { outside: true, bgColor: '#00000000' }, language: '${captchaToken(language)}' }, function (captcha) {
+    captcha.onReady(function () { captcha.showCaptcha(); });
     captcha.onSuccess(function () { skidsenseSend(JSON.stringify(captcha.getValidate())); });
-    captcha.onError(function () { skidsenseSend(''); });
-    captcha.onClose(function () { skidsenseSend(''); });
+    captcha.onError(function (e) { skidsenseSend('err:' + ((e && e.code) || 'unknown')); });
+    captcha.onClose(function () { skidsenseSend('close'); });
   });
 </script></body></html>''';
 
@@ -58,12 +62,13 @@ String turnstilePage(String siteKey) => '''
 /// hostname (S26) — and navigation away from it is refused, so a redirect
 /// cannot take the bridge somewhere else.
 class CaptchaView extends StatefulWidget {
-  const CaptchaView({super.key, required this.html, required this.baseUrl, required this.onResult, this.height = 320});
+  const CaptchaView({super.key, required this.html, required this.baseUrl, required this.onResult, this.height});
 
   final String html;
   final String baseUrl;
   final ValueChanged<String> onResult;
-  final double height;
+  /// Null fills the space given.
+  final double? height;
 
   @override
   State<CaptchaView> createState() => _CaptchaViewState();
@@ -85,3 +90,11 @@ class _CaptchaViewState extends State<CaptchaView> {
   @override
   Widget build(BuildContext context) => SizedBox(height: widget.height, child: WebViewWidget(controller: _controller));
 }
+
+/// GeeTest's language for the app's: Traditional for Hant, Simplified for
+/// other Chinese, English otherwise.
+String geeTestLanguage(Locale locale) => switch (locale) {
+      Locale(languageCode: 'zh', scriptCode: 'Hant') => 'zho-tw',
+      Locale(languageCode: 'zh') => 'zho',
+      _ => 'eng',
+    };

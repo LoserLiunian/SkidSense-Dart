@@ -40,6 +40,7 @@
   "captchaRedo": "重新验证",
   "captchaFailed": "验证失败（{code}），请重试。",
   "captchaExpired": "验证已过期，请重试。",
+  "captchaOnSignIn": "登录时会弹出人机验证。",
   "passwordLoginDisabled": "这个服务器关闭了密码登录。",
   "pairingAfterLogin": "登录与配对是两步：先在这里登录，再扫描电脑上的二维码。",
   "twoFactorTitle": "两步验证",

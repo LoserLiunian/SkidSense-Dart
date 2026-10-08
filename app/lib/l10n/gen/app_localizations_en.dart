@@ -129,6 +129,9 @@ class L10nEn extends L10n {
   String get captchaExpired => 'Verification expired. Try again.';
 
   @override
+  String get captchaOnSignIn => 'A quick human check opens when you sign in.';
+
+  @override
   String get passwordLoginDisabled =>
       'This server has password sign-in turned off.';
 

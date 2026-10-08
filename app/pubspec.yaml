@@ -48,3 +48,6 @@ dev_dependencies:
 flutter:
   generate: true
   uses-material-design: true
+  config:
+    # iOS plugins through Swift Package Manager; no CocoaPods needed.
+    enable-swift-package-manager: true

@@ -4,7 +4,6 @@ import 'package:skidsense_core/protocol.dart';
 import 'package:skidsense_core/transport.dart';
 import 'package:test/test.dart';
 
-import '../protocol/test_responder.dart';
 import '../support/fake_host.dart';
 import '../support/fake_time.dart';
 

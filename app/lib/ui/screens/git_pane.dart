@@ -150,17 +150,32 @@ class _GitPaneState extends State<GitPane> {
                 padding: const EdgeInsets.fromLTRB(Gap.lg, Gap.sm, Gap.lg, 0),
                 child: AppCard(
                   child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                    Row(children: [
-                      Icon(Icons.call_split_rounded, color: context.colors.primary),
-                      const SizedBox(width: Gap.sm),
-                      Expanded(
-                        child: Text(
-                          repo.detached ? l.detached(repo.shortSha ?? '') : (repo.branch ?? l.none),
-                          style: context.text.titleMedium,
-                        ),
+                    // The branch is where branches are switched: tapping it
+                    // opens the list.
+                    InkWell(
+                      onTap: canWrite ? _branches : null,
+                      borderRadius: BorderRadius.circular(context.design.shapes.small),
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(vertical: Gap.xs),
+                        child: Row(children: [
+                          Icon(Icons.call_split_rounded, color: context.colors.primary),
+                          const SizedBox(width: Gap.sm),
+                          Expanded(
+                            child: Row(children: [
+                              Flexible(
+                                child: Text(
+                                  repo.detached ? l.detached(repo.shortSha ?? '') : (repo.branch ?? l.none),
+                                  style: context.text.titleMedium,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ),
+                              if (canWrite) Icon(Icons.arrow_drop_down_rounded, color: context.colors.onSurfaceVariant),
+                            ]),
+                          ),
+                          if (repo.ahead > 0 || repo.behind > 0) StatusBadge(l.aheadBehind(repo.ahead, repo.behind), tone: StatusTone.neutral),
+                        ]),
                       ),
-                      if (repo.ahead > 0 || repo.behind > 0) StatusBadge(l.aheadBehind(repo.ahead, repo.behind), tone: StatusTone.waiting),
-                    ]),
+                    ),
                     if (repo.upstream != null)
                       Padding(
                         padding: const EdgeInsets.only(top: Gap.xs, left: 32),
@@ -169,7 +184,6 @@ class _GitPaneState extends State<GitPane> {
                     if (canWrite) ...[
                       const SizedBox(height: Gap.lg),
                       ActionGroup(busy: _busy, items: [
-                        GroupItem(label: l.branches, icon: Icons.account_tree_outlined, onPressed: _branches),
                         GroupItem(label: l.fetch, icon: Icons.cloud_sync_outlined, onPressed: () => _mutate('fetch')),
                         GroupItem(label: l.pull, icon: Icons.download_rounded, onPressed: () => _mutate('pull')),
                         GroupItem(label: l.push, icon: Icons.upload_rounded, onPressed: () => _mutate('push')),

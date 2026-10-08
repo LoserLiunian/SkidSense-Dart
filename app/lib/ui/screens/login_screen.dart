@@ -99,10 +99,16 @@ class _LoginScreenState extends State<LoginScreen> {
       !_busy &&
       _username.text.trim().isNotEmpty &&
       _password.text.isNotEmpty &&
-      (!_needsGeetest || _geetest != null) &&
       (!_needsTurnstile || _turnstile != null);
 
   Future<void> _signIn() async {
+    // GeeTest asks when it is needed, not before: the challenge opens over
+    // the form, and signing in goes on once it is solved.
+    if (_needsGeetest && _geetest == null) {
+      final token = await _solveGeeTest();
+      if (token == null || !mounted) return;
+      _geetest = token;
+    }
     setState(() {
       _busy = true;
       _error = null;
@@ -128,6 +134,36 @@ class _LoginScreenState extends State<LoginScreen> {
     } finally {
       if (mounted) setState(() => _busy = false);
     }
+  }
+
+  /// The GeeTest challenge in a sheet; its token, or null when closed.
+  Future<String?> _solveGeeTest() async {
+    final l = context.l10n;
+    final status = _status!;
+    final language = geeTestLanguage(Localizations.localeOf(context));
+    final result = await showModalBottomSheet<String>(
+      context: context,
+      isScrollControlled: true,
+      useSafeArea: true,
+      showDragHandle: true,
+      builder: (sheet) => SizedBox(
+        height: 520,
+        child: CaptchaView(
+          key: ValueKey('geetest-${status.geetestId}'),
+          html: geeTestPage(status.geetestId ?? '', language: language),
+          baseUrl: 'https://static.geetest.com/',
+          onResult: (value) {
+            if (Navigator.of(sheet).canPop()) Navigator.of(sheet).pop(value);
+          },
+        ),
+      ),
+    );
+    if (!mounted || result == null || result == 'close') return null;
+    if (result.startsWith('err:')) {
+      setState(() => _error = l.captchaFailed(result.substring(4)));
+      return null;
+    }
+    return result;
   }
 
   Future<void> _verify() async {
@@ -235,11 +271,20 @@ class _LoginScreenState extends State<LoginScreen> {
             ),
           ),
         ),
-        if (_needsGeetest || _needsTurnstile) ...[
+        if (_needsGeetest) ...[
+          const SizedBox(height: Gap.lg),
+          Row(children: [
+            Icon(Icons.verified_user_outlined, size: 20, color: context.colors.onSurfaceVariant),
+            const SizedBox(width: Gap.sm),
+            Expanded(
+              child: Text(l.captchaOnSignIn, style: context.text.bodyMedium?.copyWith(color: context.colors.onSurfaceVariant)),
+            ),
+          ]),
+        ] else if (_needsTurnstile) ...[
           const SizedBox(height: Gap.xl),
           Text(l.captchaTitle, style: context.text.titleSmall),
           const SizedBox(height: Gap.sm),
-          _captcha(context, l),
+          _turnstileBox(context, l),
         ],
         if (status != null && !status.passwordLoginEnabled) ...[
           const SizedBox(height: Gap.lg),
@@ -268,21 +313,13 @@ class _LoginScreenState extends State<LoginScreen> {
     );
   }
 
-  Widget _captcha(BuildContext context, L10n l) {
-    final solved = _needsGeetest ? _geetest != null : _turnstile != null;
-    if (solved) {
+  Widget _turnstileBox(BuildContext context, L10n l) {
+    if (_turnstile != null) {
       return Row(children: [
         Icon(Icons.verified_rounded, color: context.colors.primary),
         const SizedBox(width: Gap.sm),
         Expanded(child: Text(l.captchaPassed, style: context.text.bodyMedium)),
-        AppButton(
-          label: l.captchaRedo,
-          emphasis: ActionEmphasis.quiet,
-          onPressed: () => setState(() {
-            _geetest = null;
-            _turnstile = null;
-          }),
-        ),
+        AppButton(label: l.captchaRedo, emphasis: ActionEmphasis.quiet, onPressed: () => setState(() => _turnstile = null)),
       ]);
     }
     final status = _status!;
@@ -293,34 +330,28 @@ class _LoginScreenState extends State<LoginScreen> {
       ],
       ClipRRect(
         borderRadius: BorderRadius.circular(context.design.shapes.large),
-        child: _needsGeetest
-            ? CaptchaView(
-                key: ValueKey('geetest-${status.geetestId}'),
-                html: geeTestPage(status.geetestId ?? ''),
-                baseUrl: 'https://static.geetest.com/',
-                onResult: (value) => setState(() => _geetest = value.isEmpty ? null : value),
-              )
-            : CaptchaView(
-                key: ValueKey('turnstile-${status.turnstileSiteKey}'),
-                // Turnstile checks the page's hostname against the site-key
-                // allowlist — which names the login server (S26).
-                html: turnstilePage(status.turnstileSiteKey ?? ''),
-                baseUrl: _base.endsWith('/') ? _base : '$_base/',
-                height: 140,
-                onResult: (value) => setState(() {
-                  if (value.startsWith('err:')) {
-                    _captchaProblem = l.captchaFailed(value.substring(4));
-                  } else if (value.isEmpty) {
-                    _captchaProblem = l.captchaExpired;
-                  } else {
-                    _captchaProblem = null;
-                    _turnstile = value;
-                  }
-                }),
-              ),
+        child: CaptchaView(
+          key: ValueKey('turnstile-${status.turnstileSiteKey}'),
+          // Turnstile checks the page's hostname against the site-key
+          // allowlist — which names the login server (S26).
+          html: turnstilePage(status.turnstileSiteKey ?? ''),
+          baseUrl: _base.endsWith('/') ? _base : '$_base/',
+          height: 72,
+          onResult: (value) => setState(() {
+            if (value.startsWith('err:')) {
+              _captchaProblem = l.captchaFailed(value.substring(4));
+            } else if (value.isEmpty) {
+              _captchaProblem = l.captchaExpired;
+            } else {
+              _captchaProblem = null;
+              _turnstile = value;
+            }
+          }),
+        ),
       ),
     ]);
   }
+
 
   Widget _twoFactor(BuildContext context, L10n l) {
     final methods = [for (final method in _challenge!.methods) if (method.available) method.method];

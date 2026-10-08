@@ -42,6 +42,7 @@
   "captchaFailed": "Verification failed ({code}). Try again.",
   "@captchaFailed": {"placeholders": {"code": {"type": "String"}}},
   "captchaExpired": "Verification expired. Try again.",
+  "captchaOnSignIn": "A quick human check opens when you sign in.",
   "passwordLoginDisabled": "This server has password sign-in turned off.",
   "pairingAfterLogin": "Signing in and pairing are two steps: sign in here first, then scan the QR code on your computer.",
   "twoFactorTitle": "Two-step verification",

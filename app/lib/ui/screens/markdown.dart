@@ -1,7 +1,11 @@
+import 'dart:async';
+
 import 'package:flutter/gestures.dart';
 import 'package:flutter/services.dart';
 
+import '../describe.dart';
 import '../kit/containers.dart';
+import '../kit/feedback.dart';
 import '../material.dart';
 import '../theme/tokens.dart';
 
@@ -213,18 +217,29 @@ class _CodeBlock extends StatelessWidget {
   final String? language;
 
   @override
-  Widget build(BuildContext context) => Stack(children: [
-        MonoBlock(code, maxHeight: 420),
-        Positioned(
-          top: 2,
-          right: 2,
-          child: IconButton(
-            visualDensity: VisualDensity.compact,
-            iconSize: 18,
-            tooltip: MaterialLocalizations.of(context).copyButtonLabel,
-            icon: const Icon(Icons.copy_rounded),
-            onPressed: () => Clipboard.setData(ClipboardData(text: code)),
+  Widget build(BuildContext context) {
+    final language = this.language?.trim() ?? '';
+    // The copy button sits above the code, not over it.
+    return Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+      Row(children: [
+        if (language.isNotEmpty)
+          Padding(
+            padding: const EdgeInsetsDirectional.only(start: Gap.md),
+            child: Text(language, style: context.text.labelSmall?.mono.copyWith(color: context.colors.onSurfaceVariant)),
           ),
+        const Spacer(),
+        IconButton(
+          visualDensity: VisualDensity.compact,
+          iconSize: 18,
+          tooltip: MaterialLocalizations.of(context).copyButtonLabel,
+          icon: const Icon(Icons.copy_rounded),
+          onPressed: () {
+            unawaited(Clipboard.setData(ClipboardData(text: code)));
+            showMessage(context, context.l10n.copied);
+          },
         ),
-      ]);
+      ]),
+      MonoBlock(code, maxHeight: 420),
+    ]);
+  }
 }

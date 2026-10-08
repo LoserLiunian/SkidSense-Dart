@@ -128,6 +128,9 @@ class L10nZh extends L10n {
   String get captchaExpired => '验证已过期，请重试。';
 
   @override
+  String get captchaOnSignIn => '登录时会弹出人机验证。';
+
+  @override
   String get passwordLoginDisabled => '这个服务器关闭了密码登录。';
 
   @override
@@ -1602,6 +1605,9 @@ class L10nZhHant extends L10nZh {
 
   @override
   String get captchaExpired => '驗證已逾時，請重試。';
+
+  @override
+  String get captchaOnSignIn => '登入時會跳出真人驗證。';
 
   @override
   String get passwordLoginDisabled => '這個伺服器關閉了密碼登入。';

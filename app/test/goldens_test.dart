@@ -21,13 +21,6 @@ void main() {
   String name(String scene, DesignStyle style, Brightness brightness, [String suffix = '']) =>
       'goldens/${scene}_${style == DesignStyle.expressive ? 'm3e' : 'm3'}_${brightness.name}$suffix.png';
 
-  Future<void> settle(WidgetTester tester) async {
-    // Indicators loop forever, so pumpAndSettle would not return.
-    for (var i = 0; i < 12; i++) {
-      await tester.pump(const Duration(milliseconds: 100));
-    }
-  }
-
   Future<TestServices> signedIn(WidgetTester tester) async {
     final services = TestServices();
     services.backend.hosts.addAll(const [
