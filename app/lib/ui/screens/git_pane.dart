@@ -410,9 +410,15 @@ class _DiffScreenState extends State<DiffScreen> {
                           padding: const EdgeInsets.symmetric(horizontal: Gap.lg, vertical: Gap.xs),
                           child: Text(hunk.header, style: mono?.copyWith(color: colors.tertiary)),
                         ),
-                        SingleChildScrollView(
+                        // Every line of a hunk as wide as its widest, and at
+                        // least the screen: the add / delete tints run edge
+                        // to edge.
+                        LayoutBuilder(builder: (context, viewport) => SingleChildScrollView(
                           scrollDirection: Axis.horizontal,
-                          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                          child: ConstrainedBox(
+                            constraints: BoxConstraints(minWidth: viewport.maxWidth),
+                            child: IntrinsicWidth(
+                              child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
                             for (final line in hunk.lines)
                               Container(
                                 color: switch (line.kind) {
@@ -442,7 +448,9 @@ class _DiffScreenState extends State<DiffScreen> {
                                 ]),
                               ),
                           ]),
-                        ),
+                            ),
+                          ),
+                        )),
                       ],
                     ]),
     );

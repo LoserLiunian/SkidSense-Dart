@@ -40,9 +40,13 @@ Future<void> loadFonts() async {
   }
   await roboto.load();
   await (FontLoader('MaterialIcons')..addFont(read('$material/MaterialIcons-Regular.otf'))).load();
-  const mono = '/System/Library/Fonts/SFNSMono.ttf';
-  if (File(mono).existsSync()) await (FontLoader('monospace')..addFont(read(mono))).load();
-  // Both ship with macOS itself, so CI runners have them too.
+  // Bundled (OFL), so code looks the same on every macOS release.
+  final mono = FontLoader('monospace');
+  for (final weight in ['Regular', 'Medium', 'Bold']) {
+    mono.addFont(read('test/fonts/RobotoMono-$weight.ttf'));
+  }
+  await mono.load();
+  // Ships with macOS itself, so CI runners have it too.
   const cjk = '/System/Library/Fonts/Supplemental/Arial Unicode.ttf';
   if (File(cjk).existsSync()) await (FontLoader('CJK')..addFont(read(cjk))).load();
 }

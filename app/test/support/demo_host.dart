@@ -36,9 +36,11 @@ class DemoHost {
         pairedAt: 1,
       );
 
-  static final int _now = DateTime(2026, 10, 8, 11).millisecondsSinceEpoch;
+  /// Everything is dated relative to when the host is made, so "1 minute
+  /// ago" reads the same on every machine and in every time zone.
+  final int _now = DateTime.now().millisecondsSinceEpoch;
 
-  static Map<String, Object?> _row(String key, String title, String runState, int minutesAgo, {String agent = 'claude', String? preview}) => {
+  Map<String, Object?> _row(String key, String title, String runState, int minutesAgo, {String agent = 'claude', String? preview}) => {
         'key': key,
         'agent': agent,
         'workdir': root,
@@ -49,14 +51,14 @@ class DemoHost {
         'updatedAt': _now - minutesAgo * 60000,
       };
 
-  static final List<Map<String, Object?>> rows = [
+  late final List<Map<String, Object?>> rows = [
     _row(runningKey, 'Refactor the relay reconnect', 'awaiting-input', 1, preview: 'Waiting for approval to run the tests'),
     _row('codex:s-done', 'Add Traditional Chinese strings', 'done', 25, agent: 'codex', preview: 'Added 380 strings with Taiwan terms'),
     _row('claude:s-idle', 'Why does the LAN probe time out?', 'idle', 180),
     _row('claude:s-error', 'Upgrade the Gradle wrapper', 'error', 1440, preview: 'Network error while downloading'),
   ];
 
-  static Map<String, Object?> _finished() => {
+  Map<String, Object?> _finished() => {
         'taskId': 'task-0',
         'agent': 'claude',
         'workdir': root,
@@ -80,7 +82,7 @@ Whichever completes the handshake first is kept; the other is closed.''',
         'usage': {'contextTokens': 18400, 'outputTokens': 512},
       };
 
-  static Map<String, Object?> _live() => {
+  Map<String, Object?> _live() => {
         'taskId': 'task-1',
         'agent': 'claude',
         'workdir': root,
