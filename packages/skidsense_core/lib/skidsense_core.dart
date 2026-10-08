@@ -3,3 +3,4 @@
 library;
 
 export 'protocol.dart';
+export 'transport.dart';

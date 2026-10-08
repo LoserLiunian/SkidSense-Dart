@@ -17,8 +17,8 @@ void main() {
       ..init(ParametersWithRandom(RSAKeyGeneratorParameters(BigInt.from(65537), 2048, 64), random));
     return generator.generateKeyPair();
   }();
-  final publicKey = keyPair.publicKey as RSAPublicKey;
-  final privateKey = keyPair.privateKey as RSAPrivateKey;
+  final publicKey = keyPair.publicKey;
+  final privateKey = keyPair.privateKey;
 
   Uint8List der(int tag, List<int> content) {
     final length = content.length;
