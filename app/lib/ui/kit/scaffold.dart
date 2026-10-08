@@ -52,6 +52,9 @@ class AppPage extends StatelessWidget {
     );
     if (expressive) {
       appBar = SliverAppBar.large(
+        // The title inside marks itself as the header; the whole bar would
+        // be one oversized node.
+        excludeHeaderSemantics: true,
         leading: leading,
         automaticallyImplyLeading: automaticallyImplyLeading,
         actions: [...actions, const SizedBox(width: Gap.xs)],
@@ -62,6 +65,7 @@ class AppPage extends StatelessWidget {
     } else {
       appBar = SliverAppBar(
         pinned: true,
+        excludeHeaderSemantics: true,
         leading: leading,
         automaticallyImplyLeading: automaticallyImplyLeading,
         actions: actions,
@@ -107,11 +111,15 @@ class _FlexibleTitle extends StatelessWidget {
           right: 96,
           top: 0,
           height: kToolbarHeight,
-          child: Opacity(
-            opacity: (1 - t * 3).clamp(0.0, 1.0),
-            child: Align(
-              alignment: AlignmentDirectional.centerStart,
-              child: Text(title, style: small, maxLines: 1, overflow: TextOverflow.ellipsis),
+          // Only the visible one of the two titles is read out.
+          child: ExcludeSemantics(
+            excluding: t >= 0.5,
+            child: Opacity(
+              opacity: (1 - t * 3).clamp(0.0, 1.0),
+              child: Align(
+                alignment: AlignmentDirectional.centerStart,
+                child: Semantics(header: true, child: Text(title, style: small, maxLines: 1, overflow: TextOverflow.ellipsis)),
+              ),
             ),
           ),
         ),
@@ -123,7 +131,10 @@ class _FlexibleTitle extends StatelessWidget {
           child: Opacity(
             opacity: t,
             child: Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisSize: MainAxisSize.min, children: [
-              Text(title, style: big, maxLines: 2, overflow: TextOverflow.ellipsis),
+              ExcludeSemantics(
+                excluding: t < 0.5,
+                child: Semantics(header: true, child: Text(title, style: big, maxLines: 2, overflow: TextOverflow.ellipsis)),
+              ),
               if (subtitle != null) ...[
                 const SizedBox(height: Gap.xs),
                 DefaultTextStyle.merge(

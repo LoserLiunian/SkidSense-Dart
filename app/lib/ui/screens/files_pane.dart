@@ -272,18 +272,14 @@ class _FilesPaneState extends State<FilesPane> {
         child: Padding(
           padding: const EdgeInsets.fromLTRB(Gap.lg, Gap.sm, Gap.lg, Gap.sm),
           child: Column(children: [
-            SearchBar(
+            SearchField(
               controller: _query,
-              hintText: l.searchContent,
-              leading: const Icon(Icons.search_rounded),
-              elevation: const WidgetStatePropertyAll(0),
+              hint: l.searchContent,
               onSubmitted: (query) {
                 final root = _root;
                 if (root != null && query.trim().isNotEmpty) unawaited(_app.startSearch(root, query.trim(), isRegex: _regex));
               },
-              trailing: [
-                FilterChip(label: Text(l.regex), selected: _regex, onSelected: (value) => setState(() => _regex = value)),
-              ],
+              trailing: FilterChip(label: Text(l.regex), selected: _regex, onSelected: (value) => setState(() => _regex = value)),
             ),
           ]),
         ),

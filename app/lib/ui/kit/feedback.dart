@@ -148,7 +148,6 @@ class InlineBanner extends StatelessWidget {
               IconButton(
                 onPressed: onDismiss,
                 icon: Icon(Icons.close_rounded, color: foreground, size: 20),
-                visualDensity: VisualDensity.compact,
                 tooltip: MaterialLocalizations.of(context).closeButtonTooltip,
               )
             else

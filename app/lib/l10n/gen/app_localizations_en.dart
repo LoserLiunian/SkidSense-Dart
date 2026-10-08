@@ -1138,6 +1138,11 @@ class L10nEn extends L10n {
   String get seedColor => 'Color';
 
   @override
+  String seedColorOption(int number) {
+    return 'Color $number';
+  }
+
+  @override
   String get colorVariant => 'Palette';
 
   @override

@@ -100,9 +100,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   Text(l.seedColor, style: context.text.labelLarge),
                   const SizedBox(height: Gap.sm),
                   Wrap(spacing: Gap.md, runSpacing: Gap.sm, children: [
-                    for (final seed in seedChoices)
+                    for (final (index, seed) in seedChoices.indexed)
                       _Swatch(
                         color: seed,
+                        label: l.seedColorOption(index + 1),
                         selected: appearance.seed == seed && !(appearance.dynamicColor && Platform.isAndroid),
                         onTap: () => update(appearance.copyWith(seed: seed, dynamicColor: false)),
                       ),
@@ -358,9 +359,10 @@ class _StylePreview extends StatelessWidget {
 }
 
 class _Swatch extends StatelessWidget {
-  const _Swatch({required this.color, required this.selected, required this.onTap});
+  const _Swatch({required this.color, required this.label, required this.selected, required this.onTap});
 
   final Color color;
+  final String label;
   final bool selected;
   final VoidCallback onTap;
 
@@ -370,16 +372,17 @@ class _Swatch extends StatelessWidget {
     return Semantics(
       button: true,
       selected: selected,
+      label: label,
       child: GestureDetector(
         onTap: onTap,
         child: AnimatedContainer(
           duration: context.design.motion.spatialFast.duration,
           curve: context.design.motion.spatialFast.curve,
-          width: 44,
-          height: 44,
+          width: 48,
+          height: 48,
           decoration: BoxDecoration(
             color: color,
-            borderRadius: BorderRadius.circular(selected && expressive ? 14 : 22),
+            borderRadius: BorderRadius.circular(selected && expressive ? 16 : 24),
             border: Border.all(color: selected ? context.colors.onSurface : Colors.transparent, width: 3),
           ),
           child: selected ? const Icon(Icons.check_rounded, color: Colors.white) : null,

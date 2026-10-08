@@ -91,12 +91,7 @@ class _HistoryPaneState extends State<HistoryPane> {
         SliverToBoxAdapter(
           child: Padding(
             padding: const EdgeInsets.fromLTRB(Gap.lg, Gap.sm, Gap.lg, Gap.sm),
-            child: SearchBar(
-              controller: _query,
-              hintText: l.historySearch,
-              leading: const Icon(Icons.search_rounded),
-              elevation: const WidgetStatePropertyAll(0),
-            ),
+            child: SearchField(controller: _query, hint: l.historySearch),
           ),
         ),
         if (_error != null)

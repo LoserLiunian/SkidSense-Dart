@@ -33,9 +33,12 @@ class _GalleryScreenState extends State<GalleryScreen> {
         title: l.componentGallery,
         subtitle: Text(value.style == DesignStyle.expressive ? l.styleM3E : l.styleM3),
         actions: [
-          Switch(
-            value: value.style == DesignStyle.expressive,
-            onChanged: (on) => unawaited(appearance.update(value.copyWith(style: on ? DesignStyle.expressive : DesignStyle.material3))),
+          Tooltip(
+            message: l.styleM3E,
+            child: Switch(
+              value: value.style == DesignStyle.expressive,
+              onChanged: (on) => unawaited(appearance.update(value.copyWith(style: on ? DesignStyle.expressive : DesignStyle.material3))),
+            ),
           ),
           const SizedBox(width: Gap.sm),
         ],

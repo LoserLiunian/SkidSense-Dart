@@ -215,3 +215,64 @@ class AppCard extends StatelessWidget {
     );
   }
 }
+
+/// The M3 search bar's look — a 56dp pill on the high container — as a
+/// plain text field, so the whole bar is one target for touch and for
+/// screen readers (the library's SearchBar exposes only its 24dp line).
+/// The clear button comes built in.
+class SearchField extends StatelessWidget {
+  const SearchField({
+    super.key,
+    required this.controller,
+    required this.hint,
+    this.onChanged,
+    this.onSubmitted,
+    this.trailing,
+  });
+
+  final TextEditingController controller;
+  final String hint;
+  final ValueChanged<String>? onChanged;
+  final ValueChanged<String>? onSubmitted;
+  final Widget? trailing;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.colors;
+    return ListenableBuilder(
+      listenable: controller,
+      builder: (context, _) => TextField(
+        controller: controller,
+        onChanged: onChanged,
+        onSubmitted: onSubmitted,
+        textInputAction: TextInputAction.search,
+        decoration: InputDecoration(
+          hintText: hint,
+          prefixIcon: const Icon(Icons.search_rounded),
+          suffixIcon: Row(mainAxisSize: MainAxisSize.min, children: [
+            if (controller.text.isNotEmpty)
+              IconButton(
+                tooltip: MaterialLocalizations.of(context).deleteButtonTooltip,
+                icon: const Icon(Icons.close_rounded),
+                onPressed: () {
+                  controller.clear();
+                  onChanged?.call('');
+                },
+              ),
+            if (trailing != null) Padding(padding: const EdgeInsetsDirectional.only(end: Gap.sm), child: trailing),
+          ]),
+          filled: true,
+          fillColor: colors.surfaceContainerHigh,
+          constraints: const BoxConstraints(minHeight: 56),
+          contentPadding: const EdgeInsets.symmetric(vertical: 16),
+          border: OutlineInputBorder(borderRadius: BorderRadius.circular(28), borderSide: BorderSide.none),
+          enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(28), borderSide: BorderSide.none),
+          focusedBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(28),
+            borderSide: BorderSide(color: colors.primary, width: 2),
+          ),
+        ),
+      ),
+    );
+  }
+}

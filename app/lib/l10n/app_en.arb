@@ -375,6 +375,8 @@
   "dynamicColor": "Wallpaper colors",
   "dynamicColorHint": "Use the colors of your wallpaper (Android 12 and later)",
   "seedColor": "Color",
+  "seedColorOption": "Color {number}",
+  "@seedColorOption": {"placeholders": {"number": {"type": "int"}}},
   "colorVariant": "Palette",
   "variantTonalSpot": "Tonal",
   "variantVibrant": "Vibrant",

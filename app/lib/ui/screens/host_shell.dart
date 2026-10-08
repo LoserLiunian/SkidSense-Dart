@@ -218,7 +218,9 @@ class WorkspacePicker extends StatelessWidget {
               for (final w in workspaces)
                 PopupMenuItem(value: w.path, child: Text(w.name.isEmpty ? w.path : w.name)),
             ],
-            child: Padding(
+            child: Container(
+              // A full 48dp target, though the label is one line of text.
+              constraints: const BoxConstraints(minHeight: 48),
               padding: const EdgeInsets.symmetric(horizontal: Gap.sm),
               child: Row(mainAxisSize: MainAxisSize.min, children: [
                 const Icon(Icons.workspaces_outline, size: 20),

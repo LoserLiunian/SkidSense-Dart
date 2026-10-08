@@ -112,25 +112,7 @@ class _SessionsPaneState extends State<SessionsPane> {
           SliverToBoxAdapter(
             child: Padding(
               padding: const EdgeInsets.fromLTRB(Gap.lg, Gap.sm, Gap.lg, Gap.sm),
-              child: SearchBar(
-                controller: _query,
-                hintText: l.searchSessions,
-                leading: const Icon(Icons.search_rounded),
-                elevation: const WidgetStatePropertyAll(0),
-                onChanged: _search,
-                trailing: [
-                  if (_query.text.isNotEmpty)
-                    IconButton(
-                      tooltip: l.clear,
-                      icon: const Icon(Icons.close_rounded),
-                      onPressed: () {
-                        _query.clear();
-                        _search('');
-                        setState(() {});
-                      },
-                    ),
-                ],
-              ),
+              child: SearchField(controller: _query, hint: l.searchSessions, onChanged: _search),
             ),
           ),
           if (!state.connected) const SliverToBoxAdapter(child: OfflineCard()),

@@ -330,6 +330,7 @@
   "dynamicColor": "桌布配色",
   "dynamicColorHint": "使用桌布的顏色（Android 12 以上）",
   "seedColor": "主題色",
+  "seedColorOption": "顏色 {number}",
   "colorVariant": "配色",
   "variantTonalSpot": "柔和",
   "variantVibrant": "鮮明",

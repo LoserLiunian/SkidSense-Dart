@@ -424,11 +424,11 @@ class _DiffScreenState extends State<DiffScreen> {
                                 child: Row(children: [
                                   SizedBox(
                                     width: 36,
-                                    child: Text('${line.oldLine ?? ''}', textAlign: TextAlign.end, style: mono?.copyWith(color: colors.outline)),
+                                    child: Text('${line.oldLine ?? ''}', textAlign: TextAlign.end, style: mono?.copyWith(color: colors.onSurfaceVariant)),
                                   ),
                                   SizedBox(
                                     width: 36,
-                                    child: Text('${line.newLine ?? ''}', textAlign: TextAlign.end, style: mono?.copyWith(color: colors.outline)),
+                                    child: Text('${line.newLine ?? ''}', textAlign: TextAlign.end, style: mono?.copyWith(color: colors.onSurfaceVariant)),
                                   ),
                                   const SizedBox(width: Gap.sm),
                                   Text(

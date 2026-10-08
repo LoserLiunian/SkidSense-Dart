@@ -330,6 +330,7 @@
   "dynamicColor": "壁纸取色",
   "dynamicColorHint": "使用壁纸的颜色（Android 12 及以上）",
   "seedColor": "主题色",
+  "seedColorOption": "颜色 {number}",
   "colorVariant": "配色",
   "variantTonalSpot": "柔和",
   "variantVibrant": "鲜明",

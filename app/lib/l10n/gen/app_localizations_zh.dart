@@ -1057,6 +1057,11 @@ class L10nZh extends L10n {
   String get seedColor => '主题色';
 
   @override
+  String seedColorOption(int number) {
+    return '颜色 $number';
+  }
+
+  @override
   String get colorVariant => '配色';
 
   @override
@@ -2537,6 +2542,11 @@ class L10nZhHant extends L10nZh {
 
   @override
   String get seedColor => '主題色';
+
+  @override
+  String seedColorOption(int number) {
+    return '顏色 $number';
+  }
 
   @override
   String get colorVariant => '配色';

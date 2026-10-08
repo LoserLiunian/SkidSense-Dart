@@ -1,5 +1,6 @@
 import 'package:material_3_expressive/material_3_expressive.dart';
 
+import '../describe.dart';
 import '../material.dart';
 import '../theme/tokens.dart';
 import 'feedback.dart';
@@ -108,6 +109,25 @@ class AppButton extends StatelessWidget {
   }
 }
 
+/// Whether each of [items] has room for its icon beside its label in an
+/// equal share of [constraints] at the medium button size; labels matter
+/// more, so the icons go first.
+bool _iconsFit(BuildContext context, BoxConstraints constraints, List<GroupItem<Object?>> items) {
+  if (!constraints.hasBoundedWidth || items.isEmpty) return true;
+  final share = constraints.maxWidth / items.length;
+  final style = context.text.titleMedium;
+  final scaler = MediaQuery.textScalerOf(context);
+  for (final item in items) {
+    final painter = TextPainter(text: TextSpan(text: item.label, style: style), textDirection: TextDirection.ltr, textScaler: scaler, maxLines: 1)
+      ..layout();
+    // Medium buttons: 24dp padding each side, a 24dp icon and an 8dp gap.
+    final needed = painter.width + 24 * 2 + 24 + 8;
+    painter.dispose();
+    if (needed > share) return false;
+  }
+  return true;
+}
+
 /// One action in an [ActionGroup] or one option in a [ChoiceGroup].
 class GroupItem<T> {
   const GroupItem({required this.label, this.value, this.icon, this.onPressed, this.enabled = true, this.tooltip});
@@ -132,22 +152,28 @@ class ActionGroup extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (context.design.expressive) {
-      return M3EButtonGroup(
-        type: M3EButtonGroupType.connected,
-        style: M3EButtonStyle.tonal,
-        actions: [
-          for (final item in items)
-            M3EButtonGroupAction(
-              label: Text(item.label),
-              icon: item.icon == null ? null : Icon(item.icon),
-              enabled: item.enabled && !busy,
-              tooltip: item.tooltip,
-            ),
-        ],
-        onSelectedIndexChanged: (index) {
-          if (index != null) items[index].onPressed?.call();
-        },
-      );
+      return LayoutBuilder(builder: (context, constraints) {
+        final icons = _iconsFit(context, constraints, items);
+        return M3EButtonGroup(
+          type: M3EButtonGroupType.connected,
+          style: M3EButtonStyle.tonal,
+          // The group's segments are as tall as they look: the medium size
+          // keeps every one at or above the 48dp touch target.
+          size: M3EButtonSize.md,
+          actions: [
+            for (final item in items)
+              M3EButtonGroupAction(
+                label: Text(item.label),
+                icon: item.icon == null || !icons ? null : Icon(item.icon),
+                enabled: item.enabled && !busy,
+                tooltip: item.tooltip,
+              ),
+          ],
+          onSelectedIndexChanged: (index) {
+            if (index != null) items[index].onPressed?.call();
+          },
+        );
+      });
     }
     return Wrap(spacing: Gap.sm, runSpacing: Gap.sm, children: [
       for (final item in items)
@@ -174,23 +200,29 @@ class ChoiceGroup<T> extends StatelessWidget {
   Widget build(BuildContext context) {
     final index = items.indexWhere((item) => item.value == selected);
     if (context.design.expressive) {
-      return M3EButtonGroup(
-        type: M3EButtonGroupType.connected,
-        style: M3EButtonStyle.tonal,
-        selectedIndex: index < 0 ? null : index,
-        selectionRequired: true,
-        actions: [
-          for (final item in items)
-            M3EButtonGroupAction(
-              label: Text(item.label),
-              icon: item.icon == null ? null : Icon(item.icon),
-              enabled: item.enabled,
-            ),
-        ],
-        onSelectedIndexChanged: (next) {
-          if (next != null) onSelected(items[next].value);
-        },
-      );
+      return LayoutBuilder(builder: (context, constraints) {
+        final icons = _iconsFit(context, constraints, items);
+        return M3EButtonGroup(
+          type: M3EButtonGroupType.connected,
+          style: M3EButtonStyle.tonal,
+          // The group's segments are as tall as they look: the medium size
+          // keeps every one at or above the 48dp touch target.
+          size: M3EButtonSize.md,
+          selectedIndex: index < 0 ? null : index,
+          selectionRequired: true,
+          actions: [
+            for (final item in items)
+              M3EButtonGroupAction(
+                label: Text(item.label),
+                icon: item.icon == null || !icons ? null : Icon(item.icon),
+                enabled: item.enabled,
+              ),
+          ],
+          onSelectedIndexChanged: (next) {
+            if (next != null) onSelected(items[next].value);
+          },
+        );
+      });
     }
     return Wrap(spacing: Gap.sm, runSpacing: Gap.xs, children: [
       for (final item in items)
@@ -293,14 +325,7 @@ class AppFab extends StatelessWidget {
   Widget build(BuildContext context) {
     if (actions.isEmpty) return const SizedBox.shrink();
     final first = actions.first;
-    if (context.design.expressive && actions.length > 1) {
-      return M3EFabMenu(
-        items: [
-          for (final action in actions)
-            M3EFabMenuItem(icon: Icon(action.icon), label: action.label, onPressed: action.onPressed),
-        ],
-      );
-    }
+    if (context.design.expressive && actions.length > 1) return _FabMenu(actions: actions);
     if (context.design.expressive) {
       return M3EExtendedFab(
         icon: Icon(first.icon),
@@ -334,4 +359,49 @@ class AppFab extends StatelessWidget {
       ),
     );
   }
+}
+
+/// M3 Expressive's FAB menu, named for screen readers in the app's language
+/// (the library labels its trigger "Toggle menu", in English, and leaves the
+/// button inside unnamed). The items open in an overlay and keep their own
+/// labels.
+class _FabMenu extends StatefulWidget {
+  const _FabMenu({required this.actions});
+
+  final List<FabAction> actions;
+
+  @override
+  State<_FabMenu> createState() => _FabMenuState();
+}
+
+class _FabMenuState extends State<_FabMenu> {
+  final M3EFabMenuController _controller = M3EFabMenuController();
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) => ListenableBuilder(
+        listenable: _controller,
+        builder: (context, child) => Semantics(
+          container: true,
+          button: true,
+          expanded: _controller.isOpen,
+          label: context.l10n.more,
+          onTap: _controller.toggle,
+          child: child,
+        ),
+        child: ExcludeSemantics(
+          child: M3EFabMenu(
+            controller: _controller,
+            items: [
+              for (final action in widget.actions)
+                M3EFabMenuItem(icon: Icon(action.icon), label: action.label, onPressed: action.onPressed),
+            ],
+          ),
+        ),
+      );
 }

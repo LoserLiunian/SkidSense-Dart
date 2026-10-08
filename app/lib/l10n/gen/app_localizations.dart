@@ -2006,6 +2006,12 @@ abstract class L10n {
   /// **'Color'**
   String get seedColor;
 
+  /// No description provided for @seedColorOption.
+  ///
+  /// In en, this message translates to:
+  /// **'Color {number}'**
+  String seedColorOption(int number);
+
   /// No description provided for @colorVariant.
   ///
   /// In en, this message translates to:
