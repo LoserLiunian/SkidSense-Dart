@@ -2672,6 +2672,12 @@ abstract class L10n {
   /// **'Can\'t reach the server ({base})'**
   String backendUnreachable(String base);
 
+  /// No description provided for @backendInsecure.
+  ///
+  /// In en, this message translates to:
+  /// **'{base} is plain http://, which would send your sign-in across the internet unencrypted. Use the server\'s https:// address.'**
+  String backendInsecure(String base);
+
   /// No description provided for @backendHttp.
   ///
   /// In en, this message translates to:

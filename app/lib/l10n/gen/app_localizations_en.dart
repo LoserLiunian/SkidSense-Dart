@@ -1553,6 +1553,11 @@ class L10nEn extends L10n {
   }
 
   @override
+  String backendInsecure(String base) {
+    return '$base is plain http://, which would send your sign-in across the internet unencrypted. Use the server\'s https:// address.';
+  }
+
+  @override
   String backendHttp(int status) {
     return 'The server answered HTTP $status';
   }

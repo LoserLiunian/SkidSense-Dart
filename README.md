@@ -41,7 +41,8 @@ cd app && flutter run                             # 在模擬器或手機上執�
 ## 平台
 
 - **iOS** 透過 Swift Package Manager 取得外掛（`app/pubspec.yaml` 的 `flutter.config`），不需要 CocoaPods。
-- **Android** 區網連線是 `ws://`，在 `network_security_config.xml` 中刻意允許明文：機密性與完整性由協定本身（X25519 握手＋AES-256-GCM）保證。安全儲存與 App 私有檔案排除於備份與裝置轉移之外（金鑰綁定本機 Keystore）。
+- **區網連線是 `ws://`**（規格 §10.4）：機密性、完整性與雙方身分由協定本身（X25519 握手＋AES-256-GCM）保證，因此 Android 的 `network_security_config.xml` 允許明文。平台設定無法只放行區網位址，所以「明文只限區網」由核心的 `server_policy.dart` 在每個請求前強制執行：後端與中繼只接受 `https://` / `wss://`，`http://` 僅限本機、私有 IP、`.local` 與 100.64/10（開發用伺服器）。
+- **Android** 的安全儲存與 App 私有檔案排除於備份與裝置轉移之外（金鑰綁定本機 Keystore）。
 - **正式簽章**：建立 `app/android/key.properties`（已被 git 忽略）：
 
   ```properties

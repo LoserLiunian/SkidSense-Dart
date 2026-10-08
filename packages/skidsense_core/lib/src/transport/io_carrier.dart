@@ -5,6 +5,7 @@ import 'dart:typed_data';
 
 import 'package:cryptography/dart.dart';
 
+import '../api/server_policy.dart';
 import '../protocol/bytes.dart';
 import '../protocol/primitives.dart';
 import '../protocol/protocol.dart';
@@ -126,7 +127,9 @@ class IoCarrierFactory implements CarrierFactory {
   /// The relay URL for [target], or null when there is no backend or device id.
   static Uri? relayUri(String? base, CarrierTarget target, [String? configuredPath]) {
     final deviceId = target.deviceId;
-    if (base == null || base.trim().isEmpty || deviceId == null) return null;
+    // The relay carries the bearer: plain `ws://` only where `http://` is
+    // allowed at all (server_policy.dart).
+    if (base == null || !backendAllowed(base) || deviceId == null) return null;
     final parsed = Uri.parse(base.trim());
     final path = (configuredPath != null && configuredPath.trim().isNotEmpty) ? configuredPath.trim() : '/${Protocol.relayPath}';
     var basePath = parsed.path;

@@ -6,6 +6,7 @@ library;
 export 'src/api/backend_client.dart';
 export 'src/api/backend_models.dart';
 export 'src/api/password_envelope.dart';
+export 'src/api/server_policy.dart';
 export 'src/app/app_controller.dart';
 export 'src/app/app_state.dart';
 export 'src/app/history.dart';

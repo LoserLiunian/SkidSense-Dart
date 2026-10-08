@@ -449,6 +449,7 @@
   "backendNotSignedIn": "尚未登录",
   "backendSessionExpired": "登录已过期，请重新登录。",
   "backendUnreachable": "无法连接服务器（{base}）",
+  "backendInsecure": "{base} 是未加密的 http://，登录凭据会以明文经过互联网。请使用服务器的 https:// 地址。",
   "backendHttp": "服务器返回 HTTP {status}",
   "backendUnparsable": "服务器返回了无法解析的内容（{base} 是不是填错了？）",
   "backendBadData": "服务器返回的数据格式不对",

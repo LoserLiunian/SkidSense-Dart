@@ -1434,6 +1434,11 @@ class L10nZh extends L10n {
   }
 
   @override
+  String backendInsecure(String base) {
+    return '$base 是未加密的 http://，登录凭据会以明文经过互联网。请使用服务器的 https:// 地址。';
+  }
+
+  @override
   String backendHttp(int status) {
     return '服务器返回 HTTP $status';
   }
@@ -2918,6 +2923,11 @@ class L10nZhHant extends L10nZh {
   @override
   String backendUnreachable(String base) {
     return '無法連線到伺服器（$base）';
+  }
+
+  @override
+  String backendInsecure(String base) {
+    return '$base 是未加密的 http://，登入憑證會以明文經過網際網路。請使用伺服器的 https:// 位址。';
   }
 
   @override

@@ -130,6 +130,7 @@ extension Describe on L10n {
         'not-signed-in' => backendNotSignedIn,
         'session-expired' => backendSessionExpired,
         'unreachable' => backendUnreachable(error.base ?? ''),
+        'insecure-server' => backendInsecure(error.base ?? ''),
         'http' => backendHttp(error.status),
         'unparsable' => backendUnparsable(error.base ?? ''),
         'bad-data' => backendBadData,

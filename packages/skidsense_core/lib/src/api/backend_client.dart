@@ -9,6 +9,7 @@ import '../util/json.dart';
 import '../util/state_value.dart';
 import 'backend_models.dart';
 import 'password_envelope.dart';
+import 'server_policy.dart';
 
 /// A backend failure, with a [code] the app words and — when the server
 /// explained itself — the server's own [message] (already in the language
@@ -115,6 +116,9 @@ class BackendClient {
     String? sessionId,
   }) async {
     final root = base.trim();
+    // Before anything is sent: a token must not cross the internet in the
+    // clear (see server_policy.dart).
+    if (!backendAllowed(root)) throw BackendException('insecure-server', base: root);
     final query0 = <String, String>{
       for (final entry in query.entries)
         if (entry.value != null) entry.key: entry.value!,

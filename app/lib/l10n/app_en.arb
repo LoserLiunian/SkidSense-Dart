@@ -515,6 +515,8 @@
   "backendSessionExpired": "Sign-in expired. Sign in again.",
   "backendUnreachable": "Can't reach the server ({base})",
   "@backendUnreachable": {"placeholders": {"base": {"type": "String"}}},
+  "backendInsecure": "{base} is plain http://, which would send your sign-in across the internet unencrypted. Use the server's https:// address.",
+  "@backendInsecure": {"placeholders": {"base": {"type": "String"}}},
   "backendHttp": "The server answered HTTP {status}",
   "@backendHttp": {"placeholders": {"status": {"type": "int"}}},
   "backendUnparsable": "The server's answer could not be read. Is {base} the right address?",
