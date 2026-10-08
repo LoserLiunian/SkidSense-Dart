@@ -29,10 +29,9 @@ class HostEndpoint {
     required this.hostKey,
     required this.deviceId,
     required List<String> lanAddrs,
-    required int lanPort,
+    required this._lanPort,
     this.relayEnabled = true,
-  })  : _lanPort = lanPort,
-        _current = List.of(lanAddrs),
+  })  : _current = List.of(lanAddrs),
         _known = List.of(lanAddrs);
 
   final String hostId;
@@ -223,18 +222,13 @@ final class _RelayTurn extends _Opening {}
 /// exponential backoff between rounds; re-subscribe after every reconnect.
 /// One implementation for both carriers — the route is the only difference.
 class RcClient {
-  // Named parameters cannot be private, hence the explicit initialisers.
-  // ignore_for_file: prefer_initializing_formals
   RcClient({
-    required HostEndpoint endpoint,
-    required KeyPair identity,
-    required Credentials credentials,
-    required CarrierFactory carriers,
+    required this._endpoint,
+    required this._identity,
+    required this._credentials,
+    required this._carriers,
     this.config = const ClientConfig(),
-  })  : _endpoint = endpoint,
-        _identity = identity,
-        _credentials = credentials,
-        _carriers = carriers;
+  });
 
   final HostEndpoint _endpoint;
   final KeyPair _identity;
