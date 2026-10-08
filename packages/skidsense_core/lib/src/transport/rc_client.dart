@@ -424,6 +424,8 @@ class RcClient {
       if (remaining.isEmpty) break;
       final opened = await _openFastest(remaining, attempt, (route, error) {
         dead.add(route);
+        // The relay's upgrade said 401: the bearer is spent, not the route.
+        if (error is CarrierUnavailable && error.reason == 'unauthorized') unawaited(_credentials.onUnauthorized());
         unreachable(_attribute(error, route));
       });
       if (opened == null) break;
