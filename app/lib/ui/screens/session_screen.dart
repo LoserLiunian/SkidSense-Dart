@@ -211,6 +211,11 @@ class _SessionScreenState extends State<SessionScreen> {
     });
   }
 
+  /// Finished turns never change: the same widget each time lets the
+  /// framework skip them while the live turn streams (theme and locale
+  /// changes still reach them through their dependencies).
+  final Expando<Widget> _recordViews = Expando();
+
   Widget _transcript(BuildContext context) {
     final records = _app.liveTurn.history;
     final live = _app.liveTurn.snapshot;
@@ -221,7 +226,7 @@ class _SessionScreenState extends State<SessionScreen> {
       if (live != null && live.running)
         Padding(padding: const EdgeInsets.only(top: Gap.md), child: ActivityLine(live)),
       if (showLive) TurnView(snapshot: live, error: live.error, live: live.running),
-      for (final record in records.reversed) TurnView(snapshot: record.snapshot, error: record.error),
+      for (final record in records.reversed) _recordViews[record] ??= TurnView(snapshot: record.snapshot, error: record.error),
     ];
     return ListView.separated(
       controller: _scroll,
