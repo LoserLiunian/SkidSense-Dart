@@ -135,6 +135,7 @@ Widget harness(
   DesignStyle style = DesignStyle.expressive,
   Brightness brightness = Brightness.light,
   Locale locale = const Locale('en'),
+  double textScale = 1,
 }) {
   final appearance = services.appearance.value = services.appearance.value.copyWith(style: style);
   final theme = AppTheme.build(style, AppTheme.scheme(appearance, brightness), fontFamilyFallback: const ['CJK']);
@@ -146,6 +147,12 @@ Widget harness(
       locale: locale,
       supportedLocales: L10n.supportedLocales,
       localizationsDelegates: appLocalizationsDelegates,
+      builder: textScale == 1
+          ? null
+          : (context, child) => MediaQuery(
+                data: MediaQuery.of(context).copyWith(textScaler: TextScaler.linear(textScale)),
+                child: child!,
+              ),
       home: child,
     ),
   );

@@ -250,7 +250,10 @@ class _ToolRow extends StatelessWidget {
     final running = call.status == 'running' || call.status == 'pending';
     return InkWell(
       onTap: () => showAppSheet<void>(context, builder: (_) => ToolCallSheet(call)),
-      child: Padding(
+      child: Container(
+        // Each row opens the call's details: a full 48dp target.
+        constraints: const BoxConstraints(minHeight: 48),
+        alignment: AlignmentDirectional.centerStart,
         padding: const EdgeInsets.symmetric(horizontal: Gap.md, vertical: Gap.sm),
         child: Row(children: [
           SizedBox(

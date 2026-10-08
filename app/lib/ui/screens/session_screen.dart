@@ -156,7 +156,7 @@ class _SessionScreenState extends State<SessionScreen> {
             ],
           ),
         ],
-        body: Column(children: [
+        body: LayoutBuilder(builder: (context, body) => Column(children: [
           if (!state.connected) const OfflineCard(),
           if (_error != null)
             Padding(
@@ -183,7 +183,12 @@ class _SessionScreenState extends State<SessionScreen> {
                 ),
             ]),
           ),
-          Watch(_app.liveRevision, builder: (context, _) {
+          // Its natural height when it fits; never more than 45% of the
+          // screen, scrolling inside, so the transcript and the composer
+          // keep their room at large text sizes.
+          ConstrainedBox(
+            constraints: BoxConstraints(maxHeight: body.maxHeight * 0.45),
+            child: Watch(_app.liveRevision, builder: (context, _) {
             final interaction = _app.liveTurn.snapshot?.openInteraction;
             return AnimatedSwitcher(
               duration: context.design.motion.spatial.duration,
@@ -199,8 +204,9 @@ class _SessionScreenState extends State<SessionScreen> {
                     ),
             );
           }),
+          ),
           Composer(sessionKey: widget.sessionKey, agent: row?.agent ?? '', onSent: _jumpToLatest),
-        ]),
+        ])),
       );
     });
   }
@@ -294,11 +300,18 @@ class _ApprovalCardState extends State<ApprovalCard> {
       child: SingleChildScrollView(
         padding: const EdgeInsets.all(Gap.lg),
         child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-          Row(children: [
+          Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
             Icon(Icons.front_hand_outlined, color: colors.onTertiaryContainer),
             const SizedBox(width: Gap.sm),
-            Expanded(child: Text(heading, style: context.text.titleMedium?.copyWith(color: colors.onTertiaryContainer))),
-            if (question.allowFreeText) StatusBadge(l.approvalFreeText, tone: StatusTone.waiting),
+            Expanded(
+              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                Text(heading, style: context.text.titleMedium?.copyWith(color: colors.onTertiaryContainer)),
+                if (question.allowFreeText) ...[
+                  const SizedBox(height: Gap.xs),
+                  StatusBadge(l.approvalFreeText, tone: StatusTone.waiting),
+                ],
+              ]),
+            ),
           ]),
           if (question.title.trim().isNotEmpty) ...[
             const SizedBox(height: Gap.sm),

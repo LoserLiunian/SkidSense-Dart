@@ -109,23 +109,27 @@ class AppButton extends StatelessWidget {
   }
 }
 
-/// Whether each of [items] has room for its icon beside its label in an
-/// equal share of [constraints] at the medium button size; labels matter
-/// more, so the icons go first.
-bool _iconsFit(BuildContext context, BoxConstraints constraints, List<GroupItem<Object?>> items) {
-  if (!constraints.hasBoundedWidth || items.isEmpty) return true;
+/// How [items] fit an equal share each of [constraints] at the medium
+/// button size: with their icons, with labels only, or not at all (very
+/// large text) — when the group gives way to wrapping chips.
+enum _Fit { icons, labels, none }
+
+_Fit _fit(BuildContext context, BoxConstraints constraints, List<GroupItem<Object?>> items) {
+  if (!constraints.hasBoundedWidth || items.isEmpty) return _Fit.icons;
   final share = constraints.maxWidth / items.length;
   final style = context.text.titleMedium;
   final scaler = MediaQuery.textScalerOf(context);
+  var fit = _Fit.icons;
   for (final item in items) {
     final painter = TextPainter(text: TextSpan(text: item.label, style: style), textDirection: TextDirection.ltr, textScaler: scaler, maxLines: 1)
       ..layout();
-    // Medium buttons: 24dp padding each side, a 24dp icon and an 8dp gap.
-    final needed = painter.width + 24 * 2 + 24 + 8;
+    // Medium buttons: 24dp padding each side; a 24dp icon and an 8dp gap.
+    final label = painter.width + 24 * 2;
     painter.dispose();
-    if (needed > share) return false;
+    if (label > share) return _Fit.none;
+    if (label + 24 + 8 > share) fit = _Fit.labels;
   }
-  return true;
+  return fit;
 }
 
 /// One action in an [ActionGroup] or one option in a [ChoiceGroup].
@@ -153,7 +157,9 @@ class ActionGroup extends StatelessWidget {
   Widget build(BuildContext context) {
     if (context.design.expressive) {
       return LayoutBuilder(builder: (context, constraints) {
-        final icons = _iconsFit(context, constraints, items);
+        final fit = _fit(context, constraints, items);
+        if (fit == _Fit.none) return _wrapped();
+        final icons = fit == _Fit.icons;
         return M3EButtonGroup(
           type: M3EButtonGroupType.connected,
           style: M3EButtonStyle.tonal,
@@ -175,15 +181,17 @@ class ActionGroup extends StatelessWidget {
         );
       });
     }
-    return Wrap(spacing: Gap.sm, runSpacing: Gap.sm, children: [
-      for (final item in items)
-        OutlinedButton.icon(
-          onPressed: item.enabled && !busy ? item.onPressed : null,
-          icon: item.icon == null ? const SizedBox.shrink() : Icon(item.icon),
-          label: Text(item.label),
-        ),
-    ]);
+    return _wrapped();
   }
+
+  Widget _wrapped() => Wrap(spacing: Gap.sm, runSpacing: Gap.sm, children: [
+        for (final item in items)
+          OutlinedButton.icon(
+            onPressed: item.enabled && !busy ? item.onPressed : null,
+            icon: item.icon == null ? const SizedBox.shrink() : Icon(item.icon),
+            label: Text(item.label),
+          ),
+      ]);
 }
 
 /// Pick one of a few options — a model, an effort level. M3 Expressive: a
@@ -201,7 +209,9 @@ class ChoiceGroup<T> extends StatelessWidget {
     final index = items.indexWhere((item) => item.value == selected);
     if (context.design.expressive) {
       return LayoutBuilder(builder: (context, constraints) {
-        final icons = _iconsFit(context, constraints, items);
+        final fit = _fit(context, constraints, items);
+        if (fit == _Fit.none) return _chips();
+        final icons = fit == _Fit.icons;
         return M3EButtonGroup(
           type: M3EButtonGroupType.connected,
           style: M3EButtonStyle.tonal,
@@ -224,16 +234,18 @@ class ChoiceGroup<T> extends StatelessWidget {
         );
       });
     }
-    return Wrap(spacing: Gap.sm, runSpacing: Gap.xs, children: [
-      for (final item in items)
-        ChoiceChip(
-          label: Text(item.label),
-          avatar: item.icon == null ? null : Icon(item.icon, size: 18),
-          selected: item.value == selected,
-          onSelected: item.enabled ? (_) => onSelected(item.value) : null,
-        ),
-    ]);
+    return _chips();
   }
+
+  Widget _chips() => Wrap(spacing: Gap.sm, runSpacing: Gap.xs, children: [
+        for (final item in items)
+          ChoiceChip(
+            label: Text(item.label),
+            avatar: item.icon == null ? null : Icon(item.icon, size: 18),
+            selected: item.value == selected,
+            onSelected: item.enabled ? (_) => onSelected(item.value) : null,
+          ),
+      ]);
 }
 
 /// One entry of the send button's menu.
@@ -326,7 +338,9 @@ class AppFab extends StatelessWidget {
     if (actions.isEmpty) return const SizedBox.shrink();
     final first = actions.first;
     if (context.design.expressive && actions.length > 1) return _FabMenu(actions: actions);
-    if (context.design.expressive) {
+    // The library's extended FAB cannot shrink its label; at large text
+    // sizes Material's own one takes over.
+    if (context.design.expressive && MediaQuery.textScalerOf(context).scale(1) <= 1.3) {
       return M3EExtendedFab(
         icon: Icon(first.icon),
         label: first.label,

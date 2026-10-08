@@ -123,7 +123,14 @@ class StatusBadge extends StatelessWidget {
       child: Row(mainAxisSize: MainAxisSize.min, children: [
         dot,
         const SizedBox(width: 6),
-        Text(label, style: context.text.labelMedium?.copyWith(color: filled || design.expressive ? foreground : colors.onSurfaceVariant)),
+        Flexible(
+          child: Text(
+            label,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: context.text.labelMedium?.copyWith(color: filled || design.expressive ? foreground : colors.onSurfaceVariant),
+          ),
+        ),
       ]),
     );
   }
