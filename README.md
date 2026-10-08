@@ -31,7 +31,7 @@ cd app && flutter analyze && flutter test         # App：分析、單元、截�
 cd app && flutter run                             # 在模擬器或手機上執行
 ```
 
-- **截圖比對**（`test/goldens/`）只在 macOS 上產生與比對（字型依系統而異），容許 0.3% 像素差異。改了外觀後用 `flutter test --update-goldens` 重繪，**先看過圖再提交**。
+- **截圖比對**（`test/goldens/`）只在 macOS 上產生與比對（字型依系統而異）。不同 macOS 版本的字形反鋸齒略有差異，比對時忽略：差異超過 64/255 的像素不得多於 0.002%，任何差異的像素不得多於 1%（見 `test/flutter_test_config.dart`）。改了外觀後用 `flutter test --update-goldens` 重繪，**先看過圖再提交**。
 - **無障礙**：`test/accessibility_test.dart` 以 Android 48dp、iOS 44pt 觸控目標、可點擊元素須有標籤、WCAG 文字對比檢查每個畫面的兩種風格與深淺色。
 - **大字體**：`test/large_text_test.dart` 在 360dp 寬的手機上以 2 倍字體、三種語言渲染每個畫面，任何溢出即失敗。
 - **連線後的畫面**用 `test/support/demo_host.dart`（FakeHost＋示範資料）在假時鐘上走真協定，不需要真的電腦。
