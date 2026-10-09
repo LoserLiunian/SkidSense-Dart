@@ -93,6 +93,48 @@ void main() {
         expect(app.controller.state.notice?.kind, NoticeKind.forgetUnrevoked);
       }));
 
+  /// A proxy's 404 page in front of the backend — its own text, or a
+  /// gateway's JSON without new-api's `success: false` — says nothing of the
+  /// device: the revoke may never have arrived, and the user is told so.
+  /// Only the backend's own 404 means it was already gone there.
+  for (final (kind, page) in [
+    ('a proxy page', 'default backend - 404'),
+    ('a gateway JSON page', '{"message":"no Route matched with those values"}'),
+    ("the backend's own", TestBackend.fail('设备不存在')),
+  ]) {
+    test('forgetting when the revoke meets a 404: $kind', () => runFake((_) async {
+          final app = TestApp();
+          final host = FakeHost(TestApp.newHostId(), Primitives.generateKeyPair());
+          app.backend.handler = (method, path, _) =>
+              method == 'DELETE' && path.endsWith('/api/companion/devices/dev-1') ? (404, page) : null;
+          await app.connectTo(host);
+          await Future<void>.delayed(const Duration(seconds: 5));
+          await app.controller.forgetHost(host.hostId);
+          expect(app.backend.log, contains('DELETE /api/companion/devices/dev-1'));
+          expect(await app.pairedOnDisk(), isEmpty);
+          expect(
+            app.controller.state.notice?.kind,
+            kind == "the backend's own" ? isNot(NoticeKind.forgetUnrevoked) : NoticeKind.forgetUnrevoked,
+          );
+        }));
+  }
+
+  /// The refresh in front of the revoke answering 404 (a proxy that does not
+  /// pass it on) is no "already gone there": the revoke was never sent, and
+  /// the user is told the desktop must finish it.
+  test('forgetting when the refresh answers 404 says the revoke did not happen', () => runFake((_) async {
+        final app = TestApp();
+        final host = FakeHost(TestApp.newHostId(), Primitives.generateKeyPair());
+        app.backend.handler = (_, path, _) => path.endsWith('/api/user/auth/refresh') ? (404, TestBackend.fail('not found')) : null;
+        await app.connectTo(host);
+        await Future<void>.delayed(const Duration(seconds: 5));
+        await app.backendClient.invalidateAccessToken();
+        await app.controller.forgetHost(host.hostId);
+        expect(await app.pairedOnDisk(), isEmpty);
+        expect(app.backend.log, isNot(contains('DELETE /api/companion/devices/dev-1')));
+        expect(app.controller.state.notice?.kind, NoticeKind.forgetUnrevoked);
+      }));
+
   /// The device key: a store that throws on read must never be answered with
   /// a new key, which would make every paired host see a stranger (S27).
   test('a failing secret store does not replace the device key', () => runFake((_) async {

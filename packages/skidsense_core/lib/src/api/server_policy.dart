@@ -18,6 +18,22 @@ bool backendAllowed(String base) {
   };
 }
 
+/// A backend address as typed, made into the one the client uses — and
+/// [backendAllowed] judges: `https://` when no scheme is given (never a
+/// silent `http://`), scheme and host in lower case, the scheme's default
+/// port and trailing slashes dropped. `ai.surise.cn` is the https server it
+/// names, not a cleartext one; `HTTPS://…` the same as `https://…`.
+String normalizeBackendBase(String input) {
+  var base = input.trim();
+  if (base.isEmpty) return base;
+  if (!RegExp(r'^[A-Za-z][A-Za-z0-9+.-]*://').hasMatch(base)) base = 'https://$base';
+  base = Uri.tryParse(base)?.toString() ?? base;
+  while (base.endsWith('/')) {
+    base = base.substring(0, base.length - 1);
+  }
+  return base;
+}
+
 /// Loopback, private and link-local addresses, `localhost` and mDNS
 /// (`.local`) names; also 100.64.0.0/10, where Tailscale and similar
 /// overlays — encrypted themselves — put their peers.

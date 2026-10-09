@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:typed_data';
 
 import '../api/backend_client.dart';
+import '../api/backend_models.dart';
 import '../model/desktop.dart';
 import '../protocol/bytes.dart';
 import '../protocol/crypto_error.dart';
@@ -65,11 +66,15 @@ class HistoryEntry {
 /// Read-only, and searching happens here, over decrypted text — the backend
 /// cannot search what it cannot read.
 class HistoryRepository {
-  HistoryRepository({required this._backend, required this._identity, required this.hostId});
+  HistoryRepository({required this._backend, required this._identity, required this.hostId, this.deviceId});
 
   final BackendClient _backend;
   final KeyPair _identity;
   final String hostId;
+
+  /// This phone's device on [hostId]: with it, an epoch opened without its
+  /// key has the keys fetched again first.
+  final String? deviceId;
   final Mutex _lock = Mutex();
 
   /// epoch → the host's history key for that epoch.
@@ -112,18 +117,38 @@ class HistoryRepository {
   }
 
   /// The one call that downloads: when the user actually opens a session.
+  ///
+  /// The blob is opened under the epoch it says it is sealed for, not the
+  /// list's. A desktop that starts a new epoch (a device revoked, a scope
+  /// narrowed) seals every session again under it, keeping `updated_at`: a
+  /// list loaded before that names the old epoch, whose key opens nothing.
+  /// A missing key has the keys fetched again, once.
   Future<HistoryEntry> open(HistoryEntry entry) async {
     final cached = _cache[entry.sessionKey];
     if (cached != null && cached.updatedAt == entry.updatedAt) return cached;
-    final key = _keys[entry.epoch];
-    if (key == null) return _failed(entry, HistoryProblem.noKey);
-    final String blob;
+    var refreshed = false;
+    Future<bool> haveKey(int epoch) async {
+      final device = deviceId;
+      if (_keys.containsKey(epoch) || refreshed || device == null) return _keys.containsKey(epoch);
+      refreshed = true;
+      try {
+        await refreshKeys(device);
+      } catch (_) {}
+      return _keys.containsKey(epoch);
+    }
+
+    if (!await haveKey(entry.epoch)) return _failed(entry, HistoryProblem.noKey);
+    final HistoryBlobRow row;
     try {
-      blob = (await _backend.historyBlob(hostId, entry.sessionKey)).blob;
+      row = await _backend.historyBlob(hostId, entry.sessionKey);
     } catch (error) {
       return _failed(entry, HistoryProblem.download, error);
     }
-    final opened = openBlob(blob, entry);
+    final sealed = row.epoch <= 0 || row.epoch == entry.epoch
+        ? entry
+        : HistoryEntry(sessionKey: entry.sessionKey, epoch: row.epoch, updatedAt: entry.updatedAt, size: entry.size);
+    if (!await haveKey(sealed.epoch)) return _failed(sealed, HistoryProblem.noKey);
+    final opened = openBlob(row.blob, sealed);
     if (opened.problem == null) _cache[entry.sessionKey] = opened;
     return opened;
   }

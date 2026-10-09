@@ -44,6 +44,8 @@ dev_dependencies:
   flutter_test:
     sdk: flutter
   flutter_lints: ^6.0.0
+  # The platform classes test/support/fake_webview.dart extends.
+  webview_flutter_platform_interface: ^2.15.1
 
 flutter:
   generate: true

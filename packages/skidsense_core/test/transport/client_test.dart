@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 import 'dart:typed_data';
 
 import 'package:skidsense_core/protocol.dart';
@@ -321,6 +322,37 @@ void main() {
           ),
           throwsA(isA<HelloRefused>()),
         );
+      }));
+
+  /// Pairing away from the desktop's network: the QR lists every private
+  /// address it has, and waiting out each one's timeout in turn put many
+  /// seconds of "handshaking" in front of the relay (spec §10.5).
+  test('enrollment tries the LAN addresses at once and the relay soon after', () => runFake((time) async {
+        final code = Primitives.randomBytes(32);
+        final host = newHost()..pairingCode = code;
+        const addresses = ['192.168.1.20', '192.168.139.3', '10.8.0.2', 'fd07::1'];
+        final payload = Pairing.decode(Protocol.pairingUrlPrefix +
+            B64u.encode(utf8Bytes(
+                '{"v":1,"n":"$hostId","k":"${B64u.encode(hostStatic.pub)}","c":"${B64u.encode(code)}","h":${jsonEncode(addresses)},"p":47290,"s":"https://ai.surise.cn","m":"书房的 Mac"}')));
+        final carriers = FakeCarriers()
+          ..blackhole = addresses.toSet()
+          ..relay = () => host;
+        final tried = <HostRoute>[];
+        final started = time.elapsed;
+        final welcome = await Enrollment.enroll(
+          payload: payload,
+          deviceId: 'dev-1',
+          identity: identity,
+          ticket: 'ticket-1',
+          carriers: carriers,
+          config: fastConfig,
+          onProgress: (progress) => tried.add((progress as EnrollTrying).route),
+        );
+        final took = time.elapsed - started;
+        expect(welcome.host.id, hostId);
+        expect(host.enrolledKeys.single, identity.pub);
+        expect(took <= const Duration(seconds: 3), isTrue, reason: 'enrolled through the relay after $took');
+        expect(tried.toSet(), {for (final address in addresses) RouteLan(address, 47290), const RouteRelay()});
       }));
 
   /// The 409 recovery (spec §9): the phone is already registered, the backend

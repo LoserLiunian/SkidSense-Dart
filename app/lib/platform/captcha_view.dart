@@ -1,3 +1,5 @@
+import 'package:flutter/foundation.dart';
+import 'package:flutter/gestures.dart';
 import 'package:webview_flutter/webview_flutter.dart';
 
 import '../ui/material.dart';
@@ -16,25 +18,42 @@ String captchaToken(String value) => RegExp(r'^[A-Za-z0-9_-]{1,128}$').hasMatch(
 
 /// GeeTest v4 in its `bind` form: no widget on the page, the challenge
 /// opens at once over the whole view — which the app shows in a sheet when
-/// the user signs in. On success the four fields of `getValidate()` come
-/// back as JSON (the `geetest` query parameter of the login); closing gives
-/// `close`, a failure `err:<code>`.
+/// the user signs in. `ready` says the challenge is up. On success the four
+/// fields of `getValidate()` come back as JSON (the `geetest` query
+/// parameter of the login); closing gives `close`, a failure `err:<code>`.
+///
+/// The SDK comes from GeeTest's CDN: when it cannot be fetched (`err:load`)
+/// or has not arrived in 15 seconds (`err:timeout`, as the desktop app
+/// waits), the page says so instead of staying empty. What fails after it
+/// has arrived — the challenge's script (`err:60204`), stylesheet, language
+/// pack or pictures (`err:60200`–`60202`), or GeeTest refusing the captcha
+/// id — reaches the config's `onError`: the SDK, given none, throws instead,
+/// before the page could hear of it. So does the device script missing
+/// (`err:60205`), which the challenge does without.
 ///
 /// [language] is GeeTest's code: `zho`, `zho-tw`, `eng`.
 String geeTestPage(String captchaId, {String language = 'eng'}) => '''
 <!doctype html><html><head>
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<script src="https://static.geetest.com/v4/gt4.js"></script>
+<script>
+  $captchaSendJs
+  var skidsenseLoading = setTimeout(function () { skidsenseSend('err:timeout'); }, 15000);
+  function skidsenseLoadFailed() { clearTimeout(skidsenseLoading); skidsenseSend('err:load'); }
+  function skidsenseError(e) { skidsenseSend('err:' + ((e && e.code) || 'unknown')); }
+</script>
+<script src="https://static.geetest.com/v4/gt4.js" onerror="skidsenseLoadFailed()"></script>
 <style>html,body{margin:0;height:100%;background:transparent;font-family:sans-serif}</style>
 </head><body>
 <script>
-  $captchaSendJs
-  initGeetest4({ captchaId: '${captchaToken(captchaId)}', product: 'bind', mask: { outside: true, bgColor: '#00000000' }, language: '${captchaToken(language)}' }, function (captcha) {
-    captcha.onReady(function () { captcha.showCaptcha(); });
-    captcha.onSuccess(function () { skidsenseSend(JSON.stringify(captcha.getValidate())); });
-    captcha.onError(function (e) { skidsenseSend('err:' + ((e && e.code) || 'unknown')); });
-    captcha.onClose(function () { skidsenseSend('close'); });
-  });
+  if (window.initGeetest4) {
+    clearTimeout(skidsenseLoading);
+    initGeetest4({ captchaId: '${captchaToken(captchaId)}', product: 'bind', onError: skidsenseError, mask: { outside: true, bgColor: '#00000000' }, language: '${captchaToken(language)}' }, function (captcha) {
+      captcha.onReady(function () { skidsenseSend('ready'); captcha.showCaptcha(); });
+      captcha.onSuccess(function () { skidsenseSend(JSON.stringify(captcha.getValidate())); });
+      captcha.onError(skidsenseError);
+      captcha.onClose(function () { skidsenseSend('close'); });
+    });
+  }
 </script></body></html>''';
 
 /// Turnstile, the same bridge: the token comes back as a string, an error as
@@ -78,7 +97,12 @@ class _CaptchaViewState extends State<CaptchaView> {
   late final WebViewController _controller = WebViewController()
     ..setJavaScriptMode(JavaScriptMode.unrestricted)
     ..setBackgroundColor(const Color(0x00000000))
-    ..addJavaScriptChannel(captchaChannel, onMessageReceived: (message) => widget.onResult(message.message))
+    // Only while shown: the platform destroys a WebView taken out of the
+    // tree only once it is collected, and until then its page runs on — an
+    // earlier attempt's late `ready` or error is not this one's.
+    ..addJavaScriptChannel(captchaChannel, onMessageReceived: (message) {
+      if (mounted) widget.onResult(message.message);
+    })
     ..setNavigationDelegate(NavigationDelegate(
       // The in-memory page loads under its base URL; the SDK's own frames
       // are subresources, not navigations of the main frame.
@@ -87,8 +111,15 @@ class _CaptchaViewState extends State<CaptchaView> {
     ))
     ..loadHtmlString(widget.html, baseUrl: widget.baseUrl);
 
+  /// A touch that starts on the captcha belongs to it at once. Inside a
+  /// scroll view or a sheet the platform view would otherwise get nothing
+  /// until the gesture arena is decided — on release, or never when the drag
+  /// drifts vertically — so a slider would not follow the finger.
+  static final _gestures = {Factory<OneSequenceGestureRecognizer>(EagerGestureRecognizer.new)};
+
   @override
-  Widget build(BuildContext context) => SizedBox(height: widget.height, child: WebViewWidget(controller: _controller));
+  Widget build(BuildContext context) =>
+      SizedBox(height: widget.height, child: WebViewWidget(controller: _controller, gestureRecognizers: _gestures));
 }
 
 /// GeeTest's language for the app's: Traditional for Hant, Simplified for

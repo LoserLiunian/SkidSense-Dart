@@ -56,7 +56,14 @@ class _HistoryPaneState extends State<HistoryPane> {
       final host = app.state.activeHost;
       if (host != null) await repository.refreshKeys(host.deviceId);
       final entries = await repository.load();
-      if (mounted) setState(() => _entries = entries);
+      if (mounted) {
+        setState(() {
+          _entries = entries;
+          // A failure is the old row's (its epoch, say): the fresh one is
+          // shown, and opened again, in its place.
+          _opened.removeWhere((_, entry) => entry.problem != null);
+        });
+      }
     } catch (error) {
       if (mounted) setState(() => _error = error);
     } finally {

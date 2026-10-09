@@ -26,7 +26,7 @@ app/                       Flutter App（com.skidsense.app）
 
 ```sh
 flutter pub get                                   # 工作區：core 與 app 一起
-cd packages/skidsense_core && dart test           # 核心：175 個測試
+cd packages/skidsense_core && dart test           # 核心：271 個測試
 cd app && flutter analyze && flutter test         # App：分析、單元、截圖、無障礙、大字體
 cd app && flutter run                             # 在模擬器或手機上執行
 ```

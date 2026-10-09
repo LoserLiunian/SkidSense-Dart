@@ -114,6 +114,78 @@ void main() {
     expect(downloads, isNot(contains('claude:future')), reason: 'no download without a key for it');
   });
 
+  /// The desktop started a new epoch (a device revoked, a scope narrowed)
+  /// and sealed every session again under it, keeping `updated_at`: a list
+  /// loaded before that still names the old epoch, and the blob says the new.
+  group('a session sealed again under a new epoch', () {
+    late List<int> wrapped;
+    late int keyFetches;
+
+    Future<HistoryRepository> resealed() async {
+      wrapped = [1];
+      keyFetches = 0;
+      final backend = BackendClient(
+        http: MockClient((request) async {
+          final path = request.url.path;
+          Object? data;
+          if (path.endsWith('/api/user/login')) {
+            data = {'access_token': 't', 'access_expires_at': 9999999999, 'user': {'id': 1, 'username': 'u'}};
+          } else if (path.endsWith('/history/keys')) {
+            keyFetches += 1;
+            data = [
+              for (final epoch in wrapped)
+                {'epoch': epoch, 'wrapped': B64u.encode(HistoryCrypto.wrapKey(historyKey, device.pub, HistoryCrypto.wrapContext(hostId, epoch)))},
+            ];
+          } else if (path.endsWith('/history/sessions/blob')) {
+            data = {'session_key': 'claude:a', 'epoch': 2, 'updated_at': 10, 'blob': sealed('claude:a', 2, session('a', '换了纪元'))};
+          } else if (path.endsWith('/history/sessions')) {
+            data = [
+              {'session_key': 'claude:a', 'epoch': 1, 'updated_at': 10, 'size': 100},
+            ];
+          }
+          return http.Response(jsonEncode({'success': true, 'message': '', 'data': data}), 200,
+              headers: {'content-type': 'application/json; charset=utf-8'});
+        }),
+        secrets: MemorySecretStore(),
+      );
+      await backend.login(base, 'u', 'p');
+      final repository = HistoryRepository(backend: backend, identity: device, hostId: hostId, deviceId: 'dev-1');
+      await repository.refreshKeys('dev-1');
+      return repository;
+    }
+
+    test('opens under the epoch the blob names', () async {
+      final history = await resealed();
+      final listed = (await history.load()).single;
+      expect(listed.epoch, 1);
+      wrapped = [1, 2];
+      await history.refreshKeys('dev-1');
+      final opened = await history.open(listed);
+      expect(opened.problem, isNull);
+      expect(opened.epoch, 2);
+      expect(opened.turns.single.snapshot.text, '换了纪元');
+      expect(keyFetches, 2, reason: 'the keys it had were enough');
+    });
+
+    test('fetches the keys again, once, for the epoch it lacks', () async {
+      final history = await resealed();
+      final listed = (await history.load()).single;
+      wrapped = [1, 2];
+      final opened = await history.open(listed);
+      expect(opened.problem, isNull);
+      expect(opened.epoch, 2);
+      expect(keyFetches, 2);
+    });
+
+    test('says which epoch has no key when the desktop has not wrapped it yet', () async {
+      final history = await resealed();
+      final opened = await history.open((await history.load()).single);
+      expect(opened.problem, HistoryProblem.noKey);
+      expect(opened.epoch, 2);
+      expect(keyFetches, 2);
+    });
+  });
+
   test('search runs here, over decrypted text', () async {
     final history = await repository();
     final entries = await history.load();

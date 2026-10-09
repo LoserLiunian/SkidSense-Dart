@@ -31,6 +31,7 @@ class _LoginScreenState extends State<LoginScreen> {
   Object? _error;
   ServerStatus? _status;
   String? _probedFor;
+  int _probes = 0;
   Timer? _probeDelay;
   String? _geetest;
   String? _turnstile;
@@ -61,7 +62,19 @@ class _LoginScreenState extends State<LoginScreen> {
     super.dispose();
   }
 
-  String get _base => _server.text.trim();
+  String get _typed => _server.text.trim();
+
+  /// The address as typed, made the URL the client will use
+  /// ([normalizeBackendBase]): `https://` when it names no scheme
+  /// (`ai.surise.cn`), `HTTPS://…` as `https://…` — so either is probed and
+  /// signed in to as the address it means.
+  String get _base => normalizeBackendBase(_typed);
+
+  /// http(s) and a host: what can be a server at all.
+  static bool _isServer(String base) {
+    final uri = Uri.tryParse(base);
+    return uri != null && (uri.scheme == 'https' || uri.scheme == 'http') && uri.host.isNotEmpty;
+  }
 
   /// Whether this server wants a captcha is the server's answer, so it is
   /// asked again whenever the address changes, once typing pauses.
@@ -76,19 +89,25 @@ class _LoginScreenState extends State<LoginScreen> {
     _probeDelay = Timer(const Duration(milliseconds: 600), _probe);
   }
 
-  Future<void> _probe() async {
+  /// Asks the server what a login needs; true once its answer is in. Only
+  /// the latest question counts: an earlier one still out (the screen's
+  /// first, when signing in asks again) must not overwrite its answer.
+  Future<bool> _probe() async {
     final base = _base;
-    if (!RegExp(r'^https?://[^/\s]+').hasMatch(base)) return;
+    if (!_isServer(base)) return false;
     _probedFor = base;
+    final ask = ++_probes;
     try {
       final status = await context.app.probe(base);
-      if (!mounted || _base != base) return;
+      if (!mounted || ask != _probes || _base != base) return false;
       setState(() {
         _status = status;
         _error = null;
       });
+      return true;
     } catch (error) {
-      if (mounted && _base == base) setState(() => _error = error);
+      if (mounted && ask == _probes && _base == base) setState(() => _error = error);
+      return false;
     }
   }
 
@@ -97,11 +116,27 @@ class _LoginScreenState extends State<LoginScreen> {
 
   bool get _canSubmit =>
       !_busy &&
+      _isServer(_base) &&
       _username.text.trim().isNotEmpty &&
       _password.text.isNotEmpty &&
       (!_needsTurnstile || _turnstile != null);
 
   Future<void> _signIn() async {
+    // Whether a captcha is due is the server's answer. Without one — the
+    // probe failed, or is still out — the login would go without it and be
+    // refused however often it is retried: the server is asked first.
+    if (_status == null) {
+      _probeDelay?.cancel();
+      setState(() {
+        _busy = true;
+        _error = null;
+      });
+      final answered = await _probe();
+      if (!mounted) return;
+      setState(() => _busy = false);
+      // A Turnstile server shows its widget now; signing in waits for it.
+      if (!answered || !_canSubmit) return;
+    }
     // GeeTest asks when it is needed, not before: the challenge opens over
     // the form, and signing in goes on once it is solved.
     if (_needsGeetest && _geetest == null) {
@@ -123,16 +158,18 @@ class _LoginScreenState extends State<LoginScreen> {
       );
       if (mounted) setState(() => _challenge = challenge);
     } catch (error) {
-      // A used captcha token is single-use: a retry needs a new solve.
+      if (mounted) setState(() => _error = error);
+    } finally {
+      // A captcha token is single-use, and this attempt spent it whatever
+      // the answer: the next login — a retry, or back from the second
+      // step — needs a new solve.
       if (mounted) {
         setState(() {
-          _error = error;
+          _busy = false;
           _geetest = null;
           _turnstile = null;
         });
       }
-    } finally {
-      if (mounted) setState(() => _busy = false);
     }
   }
 
@@ -146,16 +183,16 @@ class _LoginScreenState extends State<LoginScreen> {
       isScrollControlled: true,
       useSafeArea: true,
       showDragHandle: true,
-      builder: (sheet) => SizedBox(
-        height: 520,
-        child: CaptchaView(
-          key: ValueKey('geetest-${status.geetestId}'),
-          html: geeTestPage(status.geetestId ?? '', language: language),
-          baseUrl: 'https://static.geetest.com/',
-          onResult: (value) {
-            if (Navigator.of(sheet).canPop()) Navigator.of(sheet).pop(value);
-          },
-        ),
+      // Only the handle drags the sheet. Were the whole sheet draggable, the
+      // slider would get no touch until the sheet gave up the drag — on
+      // release — and a drag that drifts downwards would pull the sheet.
+      enableDrag: false,
+      builder: (sheet) => _GeeTestSheet(
+        captchaId: status.geetestId ?? '',
+        language: language,
+        onResult: (value) {
+          if (Navigator.of(sheet).canPop()) Navigator.of(sheet).pop(value);
+        },
       ),
     );
     if (!mounted || result == null || result == 'close') return null;
@@ -227,6 +264,8 @@ class _LoginScreenState extends State<LoginScreen> {
 
   Widget _form(BuildContext context, L10n l, bool expressive) {
     final status = _status;
+    final base = _base;
+    final server = _isServer(base);
     return AutofillGroup(
       key: const ValueKey('form'),
       child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
@@ -238,6 +277,10 @@ class _LoginScreenState extends State<LoginScreen> {
           textInputAction: TextInputAction.next,
           decoration: InputDecoration(
             labelText: l.serverAddress,
+            // What is used when it is not what was typed; nothing to sign in
+            // to when it cannot be an address.
+            helperText: server && base != _typed ? l.serverAddressUsed(base) : null,
+            errorText: _typed.isNotEmpty && !server ? l.serverAddressInvalid : null,
             prefixIcon: const Icon(Icons.dns_outlined),
             suffixIcon: status?.systemName == null
                 ? null
@@ -353,7 +396,23 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 
 
+  void _back() => setState(() {
+        _challenge = null;
+        _code.clear();
+        _error = null;
+      });
+
   Widget _twoFactor(BuildContext context, L10n l) {
+    final listed = [for (final method in _challenge!.methods) method.method];
+    // The app completes the second step with a code (TOTP or a backup code,
+    // §12). An account whose only factor is a passkey has no code to give:
+    // it is told what to do, not asked for one the server cannot accept.
+    if (listed.contains('passkey') && !listed.contains('2fa')) {
+      return Column(key: const ValueKey('2fa'), crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+        _brand(context, l, l.twoFactorTitle, l.twoFactorPasskeyOnly),
+        AppButton(label: l.back, large: true, expand: true, onPressed: _back),
+      ]);
+    }
     final methods = [for (final method in _challenge!.methods) if (method.available) method.method];
     final hint = methods.contains('2fa')
         ? l.twoFactorHint
@@ -386,17 +445,87 @@ class _LoginScreenState extends State<LoginScreen> {
         onPressed: _code.text.trim().isEmpty ? null : _verify,
       ),
       const SizedBox(height: Gap.sm),
-      AppButton(
-        label: l.back,
-        emphasis: ActionEmphasis.quiet,
-        onPressed: _busy
-            ? null
-            : () => setState(() {
-                  _challenge = null;
-                  _code.clear();
-                  _error = null;
-                }),
-      ),
+      AppButton(label: l.back, emphasis: ActionEmphasis.quiet, onPressed: _busy ? null : _back),
     ]);
+  }
+}
+
+/// GeeTest's page in the sign-in sheet: a spinner until the challenge is up
+/// and, when the SDK cannot be loaded, why, with a way to try again — not an
+/// empty sheet that closes to nothing.
+class _GeeTestSheet extends StatefulWidget {
+  const _GeeTestSheet({required this.captchaId, required this.language, required this.onResult});
+
+  final String captchaId;
+  final String language;
+
+  /// The page's answer: a token, `close` or `err:<code>`.
+  final ValueChanged<String> onResult;
+
+  @override
+  State<_GeeTestSheet> createState() => _GeeTestSheetState();
+}
+
+class _GeeTestSheetState extends State<_GeeTestSheet> {
+  bool _ready = false;
+  bool _unloaded = false;
+  int _attempt = 0;
+
+  void _onPage(String value) {
+    if (!mounted) return;
+    switch (value) {
+      case 'ready':
+        setState(() => _ready = true);
+      // The SDK, or what the challenge fetches after it — its script (GeeTest's
+      // 60204), stylesheet (60200), language pack (60201), all before
+      // `ready`, or its pictures (60202, the challenge up with nothing in it
+      // but "network failure") — could not be fetched: the network, which a
+      // retry may get past. Not the user failing the check.
+      case 'err:load' || 'err:timeout' || 'err:60200' || 'err:60201' || 'err:60202' || 'err:60204':
+        setState(() => _unloaded = true);
+      // Only GeeTest's device script (gct) could not be: the challenge comes
+      // up without it and is solved as ever — maybe already on screen, the
+      // error 20 s behind it. Nothing to tear down, nor to report.
+      case 'err:60205':
+        break;
+      default:
+        widget.onResult(value);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final l = context.l10n;
+    return SizedBox(
+      height: 520,
+      child: _unloaded
+          ? Center(
+              child: SingleChildScrollView(
+                child: EmptyState(
+                  icon: Icons.cloud_off_rounded,
+                  title: l.captchaLoadFailed,
+                  body: l.captchaLoadFailedHint,
+                  action: AppButton(
+                    label: l.retry,
+                    onPressed: () => setState(() {
+                      _unloaded = false;
+                      _ready = false;
+                      _attempt++;
+                    }),
+                  ),
+                ),
+              ),
+            )
+          : Stack(fit: StackFit.expand, children: [
+              CaptchaView(
+                // A new page, and so a new load, on every attempt.
+                key: ValueKey('geetest-${widget.captchaId}-$_attempt'),
+                html: geeTestPage(widget.captchaId, language: widget.language),
+                baseUrl: 'https://static.geetest.com/',
+                onResult: _onPage,
+              ),
+              if (!_ready) IgnorePointer(child: Center(child: BusyIndicator(semanticsLabel: l.captchaLoading))),
+            ]),
+    );
   }
 }

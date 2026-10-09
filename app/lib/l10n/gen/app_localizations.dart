@@ -254,6 +254,18 @@ abstract class L10n {
   /// **'Server'**
   String get serverAddress;
 
+  /// No description provided for @serverAddressUsed.
+  ///
+  /// In en, this message translates to:
+  /// **'Will use {address}'**
+  String serverAddressUsed(String address);
+
+  /// No description provided for @serverAddressInvalid.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter the server\'s address, such as https://example.com'**
+  String get serverAddressInvalid;
+
   /// No description provided for @username.
   ///
   /// In en, this message translates to:
@@ -332,6 +344,24 @@ abstract class L10n {
   /// **'A quick human check opens when you sign in.'**
   String get captchaOnSignIn;
 
+  /// No description provided for @captchaLoading.
+  ///
+  /// In en, this message translates to:
+  /// **'Loading the human check…'**
+  String get captchaLoading;
+
+  /// No description provided for @captchaLoadFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'The human check didn\'t load'**
+  String get captchaLoadFailed;
+
+  /// No description provided for @captchaLoadFailedHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Check the network connection, then try again.'**
+  String get captchaLoadFailedHint;
+
   /// No description provided for @passwordLoginDisabled.
   ///
   /// In en, this message translates to:
@@ -379,6 +409,12 @@ abstract class L10n {
   /// In en, this message translates to:
   /// **'Verify'**
   String get verify;
+
+  /// No description provided for @twoFactorPasskeyOnly.
+  ///
+  /// In en, this message translates to:
+  /// **'This account\'s second step is a passkey, which the app can\'t use yet. On the web, turn on two-step verification with an authenticator app, then sign in here with its code.'**
+  String get twoFactorPasskeyOnly;
 
   /// No description provided for @hostsTitle.
   ///
@@ -2360,6 +2396,12 @@ abstract class L10n {
   /// **'{route}: can\'t connect'**
   String errUnreachableRoute(String route);
 
+  /// No description provided for @errRouteReason.
+  ///
+  /// In en, this message translates to:
+  /// **'{route}: {reason}'**
+  String errRouteReason(String route, String reason);
+
   /// No description provided for @errUnreachable.
   ///
   /// In en, this message translates to:
@@ -2467,6 +2509,12 @@ abstract class L10n {
   /// In en, this message translates to:
   /// **'Could not get authorization: {error}'**
   String errGrant(String error);
+
+  /// No description provided for @errCompanionDisabled.
+  ///
+  /// In en, this message translates to:
+  /// **'Remote control is not turned on on this server'**
+  String get errCompanionDisabled;
 
   /// No description provided for @errNoHost.
   ///
@@ -2606,6 +2654,12 @@ abstract class L10n {
   /// **'The relay is restarting'**
   String get relayShutdown;
 
+  /// No description provided for @relayHostClosed.
+  ///
+  /// In en, this message translates to:
+  /// **'The computer ended this connection'**
+  String get relayHostClosed;
+
   /// No description provided for @relayOther.
   ///
   /// In en, this message translates to:
@@ -2627,7 +2681,7 @@ abstract class L10n {
   /// No description provided for @carrierNoCredentials.
   ///
   /// In en, this message translates to:
-  /// **'no sign-in to show the relay (server unreachable, or sign-in expired)'**
+  /// **'not signed in'**
   String get carrierNoCredentials;
 
   /// No description provided for @carrierNoRelay.
@@ -2647,6 +2701,24 @@ abstract class L10n {
   /// In en, this message translates to:
   /// **'secure connection failed'**
   String get carrierTls;
+
+  /// No description provided for @carrierForbidden.
+  ///
+  /// In en, this message translates to:
+  /// **'the server refused this phone'**
+  String get carrierForbidden;
+
+  /// No description provided for @carrierNotFound.
+  ///
+  /// In en, this message translates to:
+  /// **'the server has no such pairing or relay endpoint'**
+  String get carrierNotFound;
+
+  /// No description provided for @carrierCredentialsUnavailable.
+  ///
+  /// In en, this message translates to:
+  /// **'sign-in could not be checked right now'**
+  String get carrierCredentialsUnavailable;
 
   /// No description provided for @backendServer.
   ///
@@ -2684,6 +2756,18 @@ abstract class L10n {
   /// **'The server answered HTTP {status}'**
   String backendHttp(int status);
 
+  /// No description provided for @backendRefreshFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Couldn\'t renew the sign-in for now (HTTP {status}). Try again later.'**
+  String backendRefreshFailed(int status);
+
+  /// No description provided for @backendRefreshFailedIn.
+  ///
+  /// In en, this message translates to:
+  /// **'Couldn\'t renew the sign-in for now (HTTP {status}). Try again in {seconds, plural, =1{1 second} other{{seconds} seconds}}.'**
+  String backendRefreshFailedIn(int status, int seconds);
+
   /// No description provided for @backendUnparsable.
   ///
   /// In en, this message translates to:
@@ -2713,6 +2797,18 @@ abstract class L10n {
   /// In en, this message translates to:
   /// **'Wrong or expired code'**
   String get backendVerifyFailed;
+
+  /// No description provided for @backendRateLimited.
+  ///
+  /// In en, this message translates to:
+  /// **'Too many requests. Try again later.'**
+  String get backendRateLimited;
+
+  /// No description provided for @backendRateLimitedIn.
+  ///
+  /// In en, this message translates to:
+  /// **'Too many requests. Try again in {seconds, plural, =1{1 second} other{{seconds} seconds}}.'**
+  String backendRateLimitedIn(int seconds);
 
   /// No description provided for @pairErrNotSignedIn.
   ///

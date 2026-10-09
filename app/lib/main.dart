@@ -1,7 +1,8 @@
 import 'dart:async';
+import 'dart:io' show HttpClient;
 import 'dart:ui';
 
-import 'package:http/http.dart' as http;
+import 'package:http/io_client.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:skidsense_core/skidsense_core.dart';
 
@@ -20,14 +21,16 @@ Future<void> main() async {
 
   final secrets = KeystoreSecretStore();
   final backend = BackendClient(
-    http: http.Client(),
+    // The client bounds each whole exchange at 20 s; this gives up sooner on
+    // an address that never takes the connection (the platform's own limit
+    // is about two minutes of SYN retries).
+    http: IOClient(HttpClient()..connectionTimeout = const Duration(seconds: 10)),
     secrets: secrets,
     language: () => backendLanguage(appearance.value.language, PlatformDispatcher.instance.locales),
   );
-  final relayPath = _RelayPath(backend);
   final carriers = IoCarrierFactory(
     backendBase: () => backend.baseUrl,
-    relayPath: relayPath.get,
+    relayPath: backend.relayPath,
     bearer: backend.accessToken,
   );
   final controller = AppController(
@@ -67,32 +70,3 @@ String backendLanguage(AppLanguage language, List<Locale> system) => switch (lan
           _ => 'en',
         },
     };
-
-/// The relay's path from the backend's `/config`, fetched once per server
-/// and only when the relay is first wanted.
-class _RelayPath {
-  _RelayPath(this._backend);
-
-  final BackendClient _backend;
-  String? _server;
-  Future<String?>? _path;
-
-  Future<String?> get() {
-    final server = _backend.baseUrl;
-    if (_path == null || _server != server) {
-      _server = server;
-      _path = _fetch();
-    }
-    return _path!;
-  }
-
-  Future<String?> _fetch() async {
-    try {
-      return (await _backend.companionConfig()).wsPath;
-    } catch (_) {
-      // Not cached: the next connection asks again.
-      _path = null;
-      return null;
-    }
-  }
-}

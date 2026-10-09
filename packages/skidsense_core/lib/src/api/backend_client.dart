@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:io' show HttpDate, OSError, SocketException;
 
 import 'package:clock/clock.dart';
 import 'package:http/http.dart' as http;
@@ -22,8 +23,23 @@ import 'server_policy.dart';
 /// `no-credentials` (a login answered without a token),
 /// `verification-incomplete` (a second factor was asked for without a flow),
 /// `verify-failed`.
+///
+/// `session-expired` means there is no session left to use: the server
+/// refused the refresh cookie. A refresh that could not be settled — no
+/// answer, a 5xx, a 429, a 409 — keeps its own code, and the session, and
+/// is [fromRefresh].
 class BackendException implements Exception {
-  const BackendException(this.code, {this.message, this.status = 0, this.data, this.base, this.cause});
+  const BackendException(
+    this.code, {
+    this.message,
+    this.status = 0,
+    this.data,
+    this.base,
+    this.cause,
+    this.errorCode,
+    this.retryAfter,
+    this.fromRefresh = false,
+  });
 
   final String code;
   final String? message;
@@ -32,17 +48,57 @@ class BackendException implements Exception {
   final String? base;
   final Object? cause;
 
+  /// The envelope's own `code` (`COMPANION_DISABLED`, `AUTH_REFRESH_RACE`, …).
+  final String? errorCode;
+
+  /// The answer's `Retry-After`, in seconds; mostly a 429's, which comes
+  /// without a body. On a refresh failed with a 5xx, how long until the next
+  /// one is sent (see [BackendClient._refreshPause]).
+  final Duration? retryAfter;
+
+  /// The refresh in front of the call failed, and the call was never sent:
+  /// [status] and [errorCode] are the refresh endpoint's, and say nothing
+  /// of what the call would have answered — a 409 or a 404 here is no
+  /// device revoked or gone.
+  final bool fromRefresh;
+
+  BackendException _asRefresh([Duration? wait]) => BackendException(
+        code,
+        message: message,
+        status: status,
+        data: data,
+        base: base,
+        cause: cause,
+        errorCode: errorCode,
+        retryAfter: wait ?? retryAfter,
+        fromRefresh: true,
+      );
+
   @override
-  String toString() =>
-      'BackendException($code${status == 0 ? '' : ', HTTP $status'}${message == null ? '' : ', “$message”'}${base == null ? '' : ', $base'})';
+  String toString() => 'BackendException(${[
+        code,
+        if (fromRefresh) 'refresh',
+        if (status != 0) 'HTTP $status',
+        ?errorCode,
+        if (message != null) '“$message”',
+        if (retryAfter != null) 'retry in ${retryAfter!.inSeconds} s',
+        ?base,
+      ].join(', ')})';
 }
 
 class _Raw {
-  const _Raw(this.status, this.json, this.setCookies);
+  const _Raw(this.status, this.json, this.setCookies, {required this.receivedAt, this.date, this.retryAfter});
 
   final int status;
   final Map<String, Object?>? json;
   final List<String> setCookies;
+
+  /// When the answer came, on this phone's clock (epoch ms).
+  final int receivedAt;
+
+  /// The answer's `Date`: when it left, on the server's clock.
+  final DateTime? date;
+  final Duration? retryAfter;
 }
 
 /// The phone's new-api client: login (spec §12, mirroring the desktop's
@@ -50,7 +106,8 @@ class _Raw {
 ///
 /// Auth is a short-lived bearer plus the `new_api_refresh` cookie. There is
 /// no cookie jar: that one cookie is captured from `Set-Cookie` by hand and
-/// replayed on refresh with `X-Auth-Session`. Authenticated calls refresh
+/// replayed on refresh with `X-Auth-Session` and the backend's own `Origin`
+/// (logout likewise). Authenticated calls refresh
 /// once on a 401 and retry. Redirects are not followed — a redirect to
 /// another host would be a misconfigured deployment, not something to send
 /// the bearer to.
@@ -67,6 +124,36 @@ class BackendClient {
   static const _refreshCookie = 'new_api_refresh';
   static const _accessFallback = Duration(minutes: 14);
 
+  /// The whole exchange: connecting, TLS, waiting for the headers, the body.
+  static const _timeout = Duration(seconds: 20);
+
+  /// The server rotates the refresh cookie before it answers, and takes the
+  /// old one back — for the same new one — for 30 s; after that the old one
+  /// is reuse, and reuse revokes the whole session. A refresh whose answer
+  /// may have been lost is sent again at these points after the first send,
+  /// the last a margin inside that window; one that passed while the send
+  /// before was still out is skipped. A backend that rotated and then went
+  /// down behind its proxy, as in a restart, answers 502 for ten or twenty
+  /// seconds: the old cookie is taken back after it.
+  static const _refreshResends = [Duration(seconds: 2), Duration(seconds: 7), Duration(seconds: 15), Duration(seconds: 24)];
+
+  /// A refresh whose sends ended in a 5xx is not followed by another for the
+  /// same session for this long, doubled for every such refresh in a row up
+  /// to [_refreshPauseMax], and back to this at the first answer that settles
+  /// anything (2xx, 401, 403). Whoever asks meanwhile gets that failure
+  /// again, its [BackendException.retryAfter] the time left. Every send counts
+  /// against the session's own refresh limit — new-api's AuthSessionRateLimit,
+  /// 60 in 20 minutes, counts before the handler runs, a 500 as well: five
+  /// sends and then 1, 2, 4, 5, 5 minutes' pause are some 30 in 20 minutes of
+  /// a failing backend. No answer, or a 429, pauses nothing.
+  static const _refreshPause = Duration(minutes: 1);
+  static const _refreshPauseMax = Duration(minutes: 5);
+
+  /// The pause before a failed keystore write is made again, doubled for
+  /// every failure after it, up to the second (see [_persist]).
+  static const _persistRetry = Duration(seconds: 2);
+  static const _persistRetryMax = Duration(minutes: 5);
+
   final http.Client _http;
   final SecretStore _secrets;
   final String Function() _language;
@@ -80,8 +167,25 @@ class BackendClient {
   String get baseUrl => _session.value?.baseUrl ?? defaultBaseUrl;
 
   Future<bool>? _refreshing;
+  Future<void> _persisting = Future.value();
+
+  /// Bumped by every [_persist]: a failed write is made again only until a
+  /// later one takes over, with retries of its own.
+  int _persistGeneration = 0;
+
+  /// The last refresh that ended in a 5xx: the session it was for (server
+  /// and cookie), until when the pause after it lasts, on [_elapsed], and
+  /// how long that pause was (see [_refreshPause]).
+  ({String base, String cookie, int until, Duration pause, BackendException error})? _refreshHeld;
 
   static int _now() => clock.now().millisecondsSinceEpoch;
+
+  /// Time that only moves forward, for the refresh's resends and pauses: the
+  /// platform's stopwatch — a phone's clock can be set back — or, under a
+  /// clock a test put in place, that clock's.
+  final Stopwatch _stopwatch = (identical(clock, const Clock()) ? Stopwatch() : clock.stopwatch())..start();
+
+  int _elapsed() => _stopwatch.elapsedMilliseconds;
 
   /// Read the stored session back. A store that cannot be read leaves the
   /// phone signed out rather than failing the app's start.
@@ -94,14 +198,49 @@ class BackendClient {
     } catch (_) {}
   }
 
+  /// A session goes into memory first, where every caller reads it, at once;
+  /// then to the keystore. A slow write can then not keep a rotated cookie
+  /// from the next refresh, and a failed one leaves it in memory until the
+  /// write is made again (see [_persist]).
+  ///
+  /// A sign-out leaves the keystore first and memory after, the order it has
+  /// always had: the app tells a sign-out it asked for from one the server
+  /// forced by whether it still shows a user when [session] turns null.
   Future<void> _save(AuthSession? session) async {
     if (session == null) {
-      await _secrets.delete(_sessionKey);
+      await _persist(clear: true);
+      _session.value = null;
     } else {
-      await _secrets.putString(_sessionKey, jsonEncode(session.toJson()));
+      _session.value = session;
+      await _persist();
     }
-    _session.value = session;
   }
+
+  /// One keystore write at a time, each of the latest session, so none lands
+  /// last with an older one. A failed write is made again (see
+  /// [_persistRetry]) until it lands or a later save takes over — not left
+  /// for the next refresh some 14 minutes on: until it lands, a process
+  /// killed in the background comes back with the cookie the server has
+  /// rotated away, and past the 30 s replay window sending that is reuse,
+  /// which revokes the whole session.
+  Future<void> _persist({bool clear = false}) => _write(++_persistGeneration, clear: clear);
+
+  Future<void> _write(int generation, {bool clear = false, Duration? waited}) => _persisting = _persisting.then((_) async {
+        final latest = clear ? null : _session.value;
+        try {
+          if (latest == null) {
+            await _secrets.delete(_sessionKey);
+          } else {
+            await _secrets.putString(_sessionKey, jsonEncode(latest.toJson()));
+          }
+        } catch (_) {
+          // Again with whatever the session is by then — none, after a sign-out.
+          final wait = waited == null ? _persistRetry : _shorter(waited * 2, _persistRetryMax);
+          unawaited(Future<void>.delayed(wait, () => generation == _persistGeneration ? _write(generation, waited: wait) : null));
+        }
+      });
+
+  static Duration _shorter(Duration a, Duration b) => a < b ? a : b;
 
   // --- low level ---------------------------------------------------------------
 
@@ -114,6 +253,7 @@ class BackendClient {
     String? bearer,
     String? cookie,
     String? sessionId,
+    bool origin = false,
   }) async {
     final root = base.trim();
     // Before anything is sent: a token must not cross the internet in the
@@ -125,7 +265,8 @@ class BackendClient {
     };
     final parsed = Uri.parse('${root.endsWith('/') ? root.substring(0, root.length - 1) : root}/$path');
     final uri = query0.isEmpty ? parsed : parsed.replace(queryParameters: {...parsed.queryParameters, ...query0});
-    final request = http.Request(method, uri)
+    final abort = Completer<void>();
+    final request = http.AbortableRequest(method, uri, abortTrigger: abort.future)
       ..followRedirects = false
       ..headers['Accept'] = 'application/json'
       // new-api picks its message language from the user's setting, then this
@@ -134,13 +275,23 @@ class BackendClient {
     if (bearer != null) request.headers['Authorization'] = 'Bearer $bearer';
     if (cookie != null) request.headers['Cookie'] = cookie;
     if (sessionId != null) request.headers['X-Auth-Session'] = sessionId;
+    // The cookie endpoints, behind SESSION_COOKIE_SECURE, take only requests
+    // that name an allowed origin; the backend's own is the one to name.
+    if (origin) request.headers['Origin'] = parsed.origin;
     if (body != null) {
       request.headers['Content-Type'] = 'application/json';
       request.body = jsonEncode(body);
     }
     final http.Response response;
     try {
-      response = await http.Response.fromStream(await _http.send(request)).timeout(const Duration(seconds: 20));
+      // One deadline over the whole exchange, and the socket torn down when
+      // it passes: a server that takes the connection and never answers
+      // would otherwise hold the call — and a refresh everyone waits on —
+      // for as long as the platform keeps the socket.
+      response = await _http.send(request).then(http.Response.fromStream).timeout(_timeout, onTimeout: () {
+        abort.complete();
+        throw TimeoutException('no answer', _timeout);
+      });
     } catch (error) {
       throw BackendException('unreachable', base: root, cause: error);
     }
@@ -149,27 +300,61 @@ class BackendClient {
       final decoded = jsonDecode(utf8.decode(response.bodyBytes));
       if (decoded is Map<String, Object?>) json = decoded;
     } catch (_) {}
-    return _Raw(response.statusCode, json, response.headersSplitValues['set-cookie'] ?? const []);
+    return _Raw(
+      response.statusCode,
+      json,
+      response.headersSplitValues['set-cookie'] ?? const [],
+      receivedAt: _now(),
+      date: _httpDate(response.headers['date']),
+      retryAfter: _seconds(response.headers['retry-after']),
+    );
+  }
+
+  static DateTime? _httpDate(String? header) {
+    if (header == null) return null;
+    try {
+      return HttpDate.parse(header);
+    } catch (_) {
+      return null;
+    }
+  }
+
+  static Duration? _seconds(String? header) {
+    final seconds = header == null ? null : int.tryParse(header.trim());
+    return seconds == null || seconds < 0 ? null : Duration(seconds: seconds);
   }
 
   static Object? _unwrap(_Raw res, String base) {
     final json = res.json;
     if (json == null) {
       throw res.status >= 400
-          ? BackendException('http', status: res.status, base: base)
-          : BackendException('unparsable', status: res.status, base: base);
+          ? BackendException('http', status: res.status, base: base, retryAfter: res.retryAfter)
+          : BackendException('unparsable', status: res.status, base: base, retryAfter: res.retryAfter);
     }
     if (json['success'] == false || res.status >= 400) {
       final message = json.str('message');
-      if (message != null && message.trim().isNotEmpty) {
-        throw BackendException('server', message: message, status: res.status, data: json['data'], base: base);
-      }
-      throw BackendException('http', status: res.status, data: json['data'], base: base);
+      // new-api's own envelope says `success: false`. A gateway's JSON in
+      // front of it — Kong's {"message":"no Route matched…"} — has a message
+      // too, but speaks for nothing behind it: an HTTP status, not the
+      // backend's word (a 404 from it is not "the device is gone").
+      final explained = json['success'] == false && message != null && message.trim().isNotEmpty;
+      throw BackendException(
+        explained ? 'server' : 'http',
+        message: explained ? message : null,
+        status: res.status,
+        data: json['data'],
+        base: base,
+        errorCode: json.str('code'),
+        retryAfter: res.retryAfter,
+      );
     }
     return json['data'];
   }
 
-  /// A current access token, refreshing first when it is missing or about to expire.
+  /// A current access token, refreshing first when it is missing or about to
+  /// expire. Null only when there is no session to use: signed out, or the
+  /// server refused the refresh cookie. A refresh that could not be settled
+  /// throws its [BackendException], and the session stays.
   Future<String?> accessToken() async {
     final current = _session.value;
     if (current == null) return null;
@@ -177,10 +362,13 @@ class BackendClient {
     return await refresh() ? _session.value?.accessToken : null;
   }
 
-  /// Drop the access token so the next call refreshes (the relay said 401).
-  Future<void> invalidateAccessToken() async {
+  /// Drop the access token so the next call refreshes (the server said 401).
+  /// With [failed], only if that is still the token: one a refresh has
+  /// already replaced is left alone.
+  Future<void> invalidateAccessToken([String? failed]) async {
     final current = _session.value;
-    if (current != null) await _save(current.withExpiry(0));
+    if (current == null || (failed != null && current.accessToken != failed)) return;
+    await _save(current.withExpiry(0));
   }
 
   Future<Object?> _authed(String path, {String method = 'GET', Map<String, String?> query = const {}, Object? body}) async {
@@ -190,7 +378,7 @@ class BackendClient {
     if (token == null) throw const BackendException('session-expired', status: 401);
     final res = await _raw(base, path, method: method, query: query, body: body, bearer: token);
     if (res.status == 401) {
-      await invalidateAccessToken();
+      await invalidateAccessToken(token);
       final again = await accessToken();
       if (again == null) throw const BackendException('session-expired', status: 401);
       return _unwrap(await _raw(base, path, method: method, query: query, body: body, bearer: again), base);
@@ -220,13 +408,7 @@ class BackendClient {
     return _decode(_unwrap(await _raw(clean, 'api/status'), clean), ServerStatus.fromJson);
   }
 
-  static String _clean(String base) {
-    var clean = base.trim();
-    while (clean.endsWith('/')) {
-      clean = clean.substring(0, clean.length - 1);
-    }
-    return clean;
-  }
+  static String _clean(String base) => normalizeBackendBase(base);
 
   Future<Map<String, String>> _passwordFields(String base, String password) async {
     final key = _unwrap(await _raw(base, 'api/user/login/encryption-key'), base);
@@ -252,7 +434,7 @@ class BackendClient {
     final data = asMap(_unwrap(res, clean));
     final token = data.str('access_token');
     if (token != null && token.isNotEmpty) {
-      await _storeSession(clean, data, res.setCookies);
+      await _storeSession(clean, data, res);
       return null;
     }
     if (data['require_verification'] == true) {
@@ -274,10 +456,18 @@ class BackendClient {
     );
     final data = asMap(_unwrap(res, clean));
     if ((data.str('access_token') ?? '').isEmpty) throw const BackendException('verify-failed');
-    await _storeSession(clean, data, res.setCookies);
+    await _storeSession(clean, data, res);
   }
 
   /// Mint a fresh access token from the refresh cookie. Single-flight.
+  ///
+  /// True when there is a current token afterwards; false when there surely
+  /// is none — signed out, or the server refused the cookie (401/403, or a
+  /// 409 AUTH_SESSION_MISMATCH), which ends the session here too. A refresh
+  /// that could not be settled — no answer, a 5xx, a 429, a refresh race —
+  /// throws its [BackendException], marked
+  /// [BackendException.fromRefresh], and keeps the session: that is a blip,
+  /// not a sign-out. After a 5xx, none is sent for a while ([_refreshPause]).
   Future<bool> refresh() => _refreshing ??= _refresh().whenComplete(() => _refreshing = null);
 
   Future<bool> _refresh() async {
@@ -286,27 +476,94 @@ class BackendClient {
     if (current.accessExpiresAt > _now() + 30000 && current.accessToken.isNotEmpty) return true;
     final cookie = current.refreshCookie;
     if (cookie == null) return false;
-    final _Raw res;
-    try {
-      res = await _raw(
-        current.baseUrl,
-        'api/user/auth/refresh',
-        method: 'POST',
-        cookie: '$_refreshCookie=$cookie',
-        sessionId: current.sessionId,
-      );
-    } on BackendException {
+    // A pause is the session's it came from: not one signed in since, on
+    // this server or another, nor one whose cookie has turned over.
+    var held = _refreshHeld;
+    if (held != null && (held.base != current.baseUrl || held.cookie != cookie)) held = _refreshHeld = null;
+    if (held != null && held.until > _elapsed()) {
+      throw held.error._asRefresh(Duration(milliseconds: held.until - _elapsed()));
+    }
+    final started = _elapsed();
+    int since() => _elapsed() - started;
+    // The sends are over: a 5xx pauses the next refresh, anything else is
+    // just thrown.
+    Never give(BackendException error, StackTrace stack) {
+      if (error.status < 500) Error.throwWithStackTrace(error._asRefresh(), stack);
+      final pause = held == null ? _refreshPause : _shorter(held.pause * 2, _refreshPauseMax);
+      _refreshHeld = (base: current.baseUrl, cookie: cookie, until: _elapsed() + pause.inMilliseconds, pause: pause, error: error);
+      Error.throwWithStackTrace(error._asRefresh(pause), stack);
+    }
+
+    var next = 0;
+    for (var attempt = 0;; attempt++) {
+      try {
+        final refreshed = await _refreshOnce(current, cookie);
+        // Settled: the next 5xx pauses as the first did.
+        _refreshHeld = null;
+        return refreshed;
+      } on BackendException catch (error, stack) {
+        // No answer, or a 5xx: the server may have rotated the cookie all the
+        // same, and this phone still holds the old one (see _refreshResends).
+        // Not a first send that never left ([_neverSent]): that rotated
+        // nothing, and its resends only kept the caller — a computer opened
+        // with the backend out of reach — waiting. A later one is sent again,
+        // as the first may have got through.
+        final mayHaveRotated = (error.code == 'unreachable' && (attempt > 0 || !_neverSent(error.cause))) || error.status >= 500;
+        while (next < _refreshResends.length && _refreshResends[next].inMilliseconds < since()) {
+          next++;
+        }
+        if (!mayHaveRotated || next == _refreshResends.length) give(error, stack);
+        await Future<void>.delayed(Duration(milliseconds: _refreshResends[next++].inMilliseconds - since()));
+        // Woken late — the app frozen, the phone asleep — this one is still
+        // sent, and no later one: past the window, a cookie the server rotated
+        // is reuse whenever it is sent, so holding it back saves nothing, and
+        // one it did not rotate is taken now rather than after a pause.
+        if (_session.value?.refreshCookie != cookie) return _session.value != null;
+      }
+    }
+  }
+
+  /// A failure from before a byte of the request was written, in dart:io's
+  /// own words (IOClient passes them on as a [SocketException]): no address
+  /// for the host, the connection not set up in time, or refused — which
+  /// only a connect can be. One that was up and then failed — reset, closed,
+  /// as a TUN's fake address does — may have carried it.
+  static bool _neverSent(Object? cause) => switch (cause) {
+        SocketException(:final message, :final osError) => message.startsWith('Failed host lookup') ||
+            message.startsWith('HTTP connection timed out') ||
+            message == 'Connection failed' ||
+            _refused(osError),
+        OSError() => _refused(cause),
+        _ => false,
+      };
+
+  /// ECONNREFUSED: 61 on iOS, 111 on Android.
+  static bool _refused(OSError? error) => error?.errorCode == 61 || error?.errorCode == 111;
+
+  Future<bool> _refreshOnce(AuthSession current, String cookie) async {
+    final res = await _raw(
+      current.baseUrl,
+      'api/user/auth/refresh',
+      method: 'POST',
+      cookie: '$_refreshCookie=$cookie',
+      sessionId: current.sessionId,
+      origin: true,
+    );
+    // Signed out, or in again, while this was on the way: the answer is not
+    // for the session there is now.
+    if (_session.value?.refreshCookie != cookie) return _session.value != null;
+    // A refused refresh token is a real logout, not a blip. So is a 409
+    // AUTH_SESSION_MISMATCH: the cookie belongs to another login than the
+    // session id sent with it, and sent again the pair gets the same answer.
+    // Any other 409 (AUTH_REFRESH_RACE) keeps the session, as on the desktop
+    // (spec §12).
+    if (res.status == 401 || res.status == 403 || (res.status == 409 && res.json?['code'] == 'AUTH_SESSION_MISMATCH')) {
+      await _save(null);
       return false;
     }
-    final json = res.json;
-    if (json == null || json['success'] == false) {
-      // A refused refresh token is a real logout, not a blip.
-      if (res.status == 401 || res.status == 403) await _save(null);
-      return false;
-    }
-    final data = json.obj('data');
-    if (data == null || (data.str('access_token') ?? '').isEmpty) return false;
-    await _storeSession(current.baseUrl, data, res.setCookies);
+    final data = asMap(_unwrap(res, current.baseUrl));
+    if ((data.str('access_token') ?? '').isEmpty) throw BackendException('bad-data', status: res.status, base: current.baseUrl);
+    await _storeSession(current.baseUrl, data, res);
     return true;
   }
 
@@ -321,6 +578,7 @@ class BackendClient {
         bearer: current.accessToken,
         cookie: current.refreshCookie == null ? null : '$_refreshCookie=${current.refreshCookie}',
         sessionId: current.sessionId,
+        origin: true,
       );
     } catch (_) {
       // A failed server-side revoke must not strand the user signed in locally.
@@ -331,12 +589,12 @@ class BackendClient {
 
   static final RegExp _cookiePattern = RegExp('(?:^|[;,]\\s*)$_refreshCookie=([^;,\\s]+)');
 
-  Future<void> _storeSession(String base, Map<String, Object?> data, List<String> setCookies) async {
+  Future<void> _storeSession(String base, Map<String, Object?> data, _Raw res) async {
     final user = data.obj('user');
     final session = data.obj('session');
     final sessionId = session?.str('id') ?? session?.str('sid');
     String? cookie;
-    for (final header in setCookies) {
+    for (final header in res.setCookies) {
       final match = _cookiePattern.firstMatch(header);
       if (match != null) {
         cookie = match.group(1);
@@ -345,12 +603,10 @@ class BackendClient {
     }
     final previous = _session.value;
     cookie ??= previous?.refreshCookie;
-    final raw = data['access_expires_at'];
-    final expires = raw is num ? (raw > 1000000000000 ? raw.toInt() : (raw * 1000).toInt()) : _now() + _accessFallback.inMilliseconds;
     await _save(AuthSession(
       baseUrl: base,
       accessToken: data.str('access_token') ?? '',
-      accessExpiresAt: expires,
+      accessExpiresAt: _localExpiry(data['access_expires_at'], res),
       refreshCookie: cookie,
       sessionId: sessionId ?? previous?.sessionId,
       userId: user?.number('id') ?? previous?.userId ?? 0,
@@ -358,11 +614,48 @@ class BackendClient {
     ));
   }
 
+  /// The token's expiry on this phone's clock. The server's figure is on its
+  /// own clock: a phone running minutes fast would take every new token for
+  /// expired and refresh before every call, one running slow would keep
+  /// sending expired ones. What carries over is the lifetime — the expiry
+  /// less the answer's `Date` — counted from when the answer came.
+  static int _localExpiry(Object? raw, _Raw res) {
+    if (raw is! num) return res.receivedAt + _accessFallback.inMilliseconds;
+    final expires = raw > 1000000000000 ? raw.toInt() : (raw * 1000).toInt();
+    final date = res.date;
+    return date == null ? expires : res.receivedAt + (expires - date.millisecondsSinceEpoch);
+  }
+
   Future<UserInfo> self() async => _decode(await _authed('api/user/self'), UserInfo.fromJson);
 
   // --- companion (spec §9) ---------------------------------------------------------
 
   Future<CompanionConfig> companionConfig() async => _decode(await _authed('api/companion/config'), CompanionConfig.fromJson);
+
+  String? _relayPathServer;
+  Future<String?>? _relayPath;
+
+  /// The relay's path, `ws_path` from `/config`: fetched once per server, and
+  /// only when the relay is first wanted. A failure, or no answer within
+  /// 10 s, is not kept: it gives null (the default path) and the next
+  /// connection asks again.
+  Future<String?> relayPath() {
+    final server = baseUrl;
+    if (_relayPath == null || _relayPathServer != server) {
+      _relayPathServer = server;
+      _relayPath = _fetchRelayPath(server);
+    }
+    return _relayPath!;
+  }
+
+  Future<String?> _fetchRelayPath(String server) async {
+    try {
+      return (await companionConfig().timeout(const Duration(seconds: 10))).wsPath;
+    } catch (_) {
+      if (_relayPathServer == server) _relayPath = null;
+      return null;
+    }
+  }
 
   Future<List<HostRow>> hosts() async => _decodeList(await _authed('api/companion/hosts'), HostRow.fromJson);
 

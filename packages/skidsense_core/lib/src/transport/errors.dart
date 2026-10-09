@@ -8,7 +8,7 @@ import 'carrier.dart';
 /// is text the *far end* wrote, shown as-is when present (the desktop's own
 /// sentence in an `ok:false`, a `bye` reason).
 class RcException implements Exception {
-  const RcException(this.code, {this.detail, this.message, this.route, this.cause});
+  const RcException(this.code, {this.detail, this.message, this.route, this.cause, this.retryAfter});
 
   final String code;
   final String? detail;
@@ -17,6 +17,10 @@ class RcException implements Exception {
   /// The route this happened on, when one was involved.
   final HostRoute? route;
   final Object? cause;
+
+  /// How long the far end said to wait before asking again (a 429's
+  /// `Retry-After`), when it said.
+  final Duration? retryAfter;
 
   @override
   String toString() {
@@ -45,6 +49,10 @@ class HandshakeRejected extends RcException {
 }
 
 /// The relay itself refused (spec §10.2), before or instead of the host.
+/// `unauthorized` says the bearer is no good; `host-closed` is the desktop
+/// ending this session, [message] its reason when it gave one — nothing
+/// about the bearer or the grant, so nothing is invalidated and the client
+/// reconnects.
 class RelayRejected extends RcException {
   const RelayRejected(super.code, {super.message, super.route});
 

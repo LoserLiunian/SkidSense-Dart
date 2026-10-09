@@ -40,6 +40,7 @@ class IoCarrierFactory implements CarrierFactory {
     required this.bearer,
     this.messageCap = inboundMessageCap,
     this.pingInterval = const Duration(seconds: 20),
+    this.relayPingInterval,
   });
 
   /// The backend base URL (`https://ai.surise.cn`).
@@ -48,13 +49,24 @@ class IoCarrierFactory implements CarrierFactory {
   /// `ws_path` from `GET /config`; may fetch it the first time.
   final Future<String?> Function() relayPath;
 
-  /// A current bearer for the relay.
+  /// A current bearer for the relay: null when signed out; throws when none
+  /// can be had right now (a refresh that could not reach the backend).
   final Future<String?> Function() bearer;
 
   final int messageCap;
 
-  /// WebSocket-level pings: keep NAT bindings warm and notice a dead socket.
+  /// WebSocket-level pings on the LAN: keep NAT bindings warm and notice a
+  /// dead socket.
   final Duration? pingInterval;
+
+  /// The same on the relay, off by default. The relay reads nothing from a
+  /// device while it waits out the account's bandwidth debt for the last
+  /// frame — up to a minute (`MaxFrameWait`) — so a ping is answered that
+  /// late, and `dart:io` drops a socket whose pong is one interval late:
+  /// saving a large file over a slow budget cut the phone's own relay. The
+  /// relay pings the device every 30 s, which keeps NAT bindings warm, and a
+  /// dead line is the inner protocol's idle timeout to notice.
+  final Duration? relayPingInterval;
 
   @override
   Future<Carrier> open(HostRoute route, CarrierTarget target, {required Duration timeout}) async {
@@ -65,9 +77,14 @@ class IoCarrierFactory implements CarrierFactory {
       case RouteLan(:final address, :final port):
         uri = lanUri(address, port);
       case RouteRelay():
-        // Null is also what a refresh that could not reach the backend gives;
-        // a real sign-out sends the app back to the login screen on its own.
-        final token = await bearer();
+        // Null is a sign-out, which sends the app back to the login screen on
+        // its own. A refresh that failed for now throws: retried, not final.
+        final String? token;
+        try {
+          token = await bearer();
+        } catch (error) {
+          throw CarrierUnavailable('credentials-unavailable', cause: error);
+        }
         if (token == null) throw const CarrierUnavailable('no-credentials');
         final relay = relayUri(backendBase(), target, await relayPath());
         if (relay == null) throw const CarrierUnavailable('no-relay');
@@ -83,12 +100,12 @@ class IoCarrierFactory implements CarrierFactory {
         serverSide: false,
         compression: CompressionOptions.compressionOff,
         maxPayloadLength: messageCap,
-      )..pingInterval = pingInterval;
+      )..pingInterval = route is RouteRelay ? relayPingInterval : pingInterval;
       return IoCarrier._(ws, counting, route.describe());
     } catch (error) {
       counting.destroy();
       if (error is CarrierUnavailable) rethrow;
-      throw CarrierUnavailable('upgrade', '$error');
+      throw CarrierUnavailable('upgrade', detail: '$error');
     }
   }
 
@@ -106,7 +123,7 @@ class IoCarrierFactory implements CarrierFactory {
           ? await SecureSocket.startConnect(host, port)
           : await Socket.startConnect(host, port);
     } on SocketException catch (error) {
-      throw CarrierUnavailable('refused', error.message);
+      throw CarrierUnavailable('refused', detail: error.message);
     }
     try {
       return await task.socket.timeout(timeout, onTimeout: () {
@@ -116,9 +133,9 @@ class IoCarrierFactory implements CarrierFactory {
     } on CarrierUnavailable {
       rethrow;
     } on HandshakeException catch (error) {
-      throw CarrierUnavailable('tls', error.message);
+      throw CarrierUnavailable('tls', detail: error.message);
     } on SocketException catch (error) {
-      throw CarrierUnavailable('refused', error.message);
+      throw CarrierUnavailable('refused', detail: error.message);
     }
   }
 
@@ -143,7 +160,10 @@ class IoCarrierFactory implements CarrierFactory {
     return Uri(
       scheme: parsed.scheme == 'http' ? 'ws' : 'wss',
       host: parsed.host,
-      port: parsed.hasPort ? parsed.port : null,
+      // Always explicit: `Uri` knows the default ports of http and https
+      // only, so a wss URL without one is port 0 (and `Uri.parse` drops an
+      // explicit :443, so no https base ever "has" a port to copy).
+      port: parsed.port,
       path: '$basePath/$tail',
       queryParameters: {'role': 'device', 'host_id': target.hostId, 'device_id': deviceId},
     );
@@ -276,14 +296,14 @@ class _CountingSocket extends Stream<Uint8List> implements Socket {
 
   void _onError(Object error, StackTrace stack) {
     if (!_upgraded && !(_headDone?.isCompleted ?? true)) {
-      _headDone!.completeError(CarrierUnavailable('io', '$error'));
+      _headDone!.completeError(CarrierUnavailable('io', detail: '$error'));
     }
     if (!_controller.isClosed) _controller.addError(error, stack);
   }
 
   void _onDone() {
     if (!_upgraded && !(_headDone?.isCompleted ?? true)) {
-      _headDone!.completeError(const CarrierUnavailable('upgrade', 'closed before the response'));
+      _headDone!.completeError(const CarrierUnavailable('upgrade', detail: 'closed before the response'));
     }
     if (!_controller.isClosed) unawaited(_controller.close());
   }
@@ -318,8 +338,22 @@ class _CountingSocket extends Stream<Uint8List> implements Socket {
     final lines = latin1.decode(_headBytes!).split('\r\n');
     final status = lines.first.split(' ');
     final code = status.length > 1 ? int.tryParse(status[1]) : null;
-    if (code == 401) throw const CarrierUnavailable('unauthorized');
-    if (code != 101) throw CarrierUnavailable('upgrade', lines.first);
+    // The relay refuses before upgrading, with a plain status: 401 is the
+    // bearer, 403 a revoked device (or the relay turned off), 404 a device
+    // or host that is gone — the backend's word on the pairing, which the
+    // client then asks `/grant` about.
+    if (code != 101) {
+      throw CarrierUnavailable(
+        switch (code) {
+          401 => 'unauthorized',
+          403 => 'forbidden',
+          404 => 'not-found',
+          429 => 'rate-limited',
+          _ => 'upgrade',
+        },
+        detail: lines.first,
+      );
+    }
     final fields = <String, String>{};
     for (final line in lines.skip(1)) {
       final colon = line.indexOf(':');
@@ -328,13 +362,13 @@ class _CountingSocket extends Stream<Uint8List> implements Socket {
     }
     if (fields['upgrade']?.toLowerCase() != 'websocket' ||
         !(fields['connection']?.toLowerCase().contains('upgrade') ?? false)) {
-      throw const CarrierUnavailable('upgrade', 'not a WebSocket upgrade');
+      throw const CarrierUnavailable('upgrade', detail: 'not a WebSocket upgrade');
     }
     final expected = base64.encode(const DartSha1().hashSync(utf8.encode('$key$_guid')).bytes);
-    if (fields['sec-websocket-accept'] != expected) throw const CarrierUnavailable('upgrade', 'bad accept key');
+    if (fields['sec-websocket-accept'] != expected) throw const CarrierUnavailable('upgrade', detail: 'bad accept key');
     if (fields.containsKey('sec-websocket-extensions')) {
       // We offered none; a server that negotiates one anyway is not one to talk to.
-      throw const CarrierUnavailable('upgrade', 'unrequested extension');
+      throw const CarrierUnavailable('upgrade', detail: 'unrequested extension');
     }
   }
 

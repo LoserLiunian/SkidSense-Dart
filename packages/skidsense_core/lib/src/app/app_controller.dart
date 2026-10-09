@@ -95,15 +95,35 @@ class PairingError implements Exception {
 
 /// A refused `POST /grant`, sorted into "this pairing is over" and "try
 /// later" (spec §9). 409 is the backend saying the device row is not active
-/// — pending or revoked; 404 that the device or host row is gone. Neither
-/// changes by retrying, and retrying is not free: every attempt spends the
-/// account's per-user critical budget, so a revoked phone left open used to
-/// lock every other phone of the account out of new grants.
-RcException grantRefusal(BackendException error) => switch (error.status) {
-      409 => RcException('revoked', detail: 'device', cause: error),
-      404 => RcException('revoked', detail: 'gone', cause: error),
-      _ => RcException('grant', cause: error),
+/// — pending or revoked; 404 that the device or host row is gone;
+/// `COMPANION_DISABLED` that remote control is turned off on the server.
+/// None changes by retrying, and retrying is not free: every attempt spends
+/// the account's per-user critical budget, so a revoked phone left open used
+/// to lock every other phone of the account out of new grants. A 409 or a
+/// 404 counts only in the backend's own envelope, which explains itself: a
+/// proxy's page in front of it (an ingress rule replaced in a deploy) says
+/// nothing of the device. Anything else is tried again — after the
+/// `Retry-After` of a 429, when it has one. So is a refresh in front of
+/// `/grant` that failed: `/grant` was not asked, and the refresh's 409 or 404
+/// says nothing of the device.
+RcException grantRefusal(BackendException error) => switch (error) {
+      BackendException(fromRefresh: true) => RcException('grant', cause: error, retryAfter: _refreshWait(error)),
+      BackendException(errorCode: 'COMPANION_DISABLED') => RcException('companion-disabled', cause: error),
+      BackendException(code: 'server', status: 409) => RcException('revoked', detail: 'device', cause: error),
+      BackendException(code: 'server', status: 404) => RcException('revoked', detail: 'gone', cause: error),
+      _ => RcException('grant', cause: error, retryAfter: error.retryAfter),
     };
+
+/// A refresh's `Retry-After`, a 429's waited out for two minutes at most.
+/// That limit is the session's own, and new-api's in-memory limiter names its
+/// whole window — 20 minutes — however little of it is left: taken at its
+/// word, it kept a phone away long after the limit had let go. Asking sooner
+/// does not prolong the limit. The pause after a 5xx is the client's own
+/// count, and exact.
+Duration? _refreshWait(BackendException error) {
+  final after = error.retryAfter;
+  return error.status == 429 && after != null && after > const Duration(minutes: 2) ? const Duration(minutes: 2) : after;
+}
 
 /// The application's one state machine: login, hosts, the connection to the
 /// active host, the session list, and the live turn. Screens read [state]
@@ -245,6 +265,7 @@ class AppController {
 
   void _onSessionExpired() {
     disconnect();
+    _grants.clear();
     _update((s) => s.copyWith(
           user: null,
           userId: 0,
@@ -298,6 +319,7 @@ class AppController {
 
   Future<void> logout() async {
     disconnect();
+    _grants.clear();
     await backend.logout();
     // Disk is deliberately untouched: the pairings on it belong to the
     // account that just left, and are read back if it signs in again (S33).
@@ -439,12 +461,15 @@ class AppController {
 
   String get _deviceName => deviceModel.trim().isEmpty ? 'Phone' : deviceModel.trim();
 
-  /// The 409 path. The grant is fetched directly rather than through the
-  /// cache, which is keyed on the *active* host — and this one is not active.
+  /// The 409 path. The grant is fetched afresh — whatever was cached for this
+  /// host is from before the pairing was redone — and kept for the connection
+  /// that follows.
   Future<PairedHost> _reconnectExisting(PairingPayload payload, String deviceId, void Function(PairStep)? onStep) async {
     final String grant;
     try {
-      grant = (await backend.grant(payload.hostId, deviceId)).grant;
+      final response = await backend.grant(payload.hostId, deviceId);
+      _grants.remember(payload.hostId, deviceId, response);
+      grant = response.grant;
     } on BackendException catch (error) {
       throw PairingError('no-grant', cause: error);
     }
@@ -571,7 +596,9 @@ class AppController {
       await backend.revokeDevice(host.deviceId);
     } on BackendException catch (error) {
       // Already gone there (revoked from the desktop, host removed): done.
-      if (error.status == 404) return;
+      // Only the backend's own word says so — not the refresh in front of
+      // the call answering 404, nor a proxy's 404 page.
+      if (error.status == 404 && error.code == 'server' && !error.fromRefresh) return;
       _update((s) => s.copyWith(notice: AppNotice(NoticeKind.forgetUnrevoked, error: error)));
     } catch (error) {
       _update((s) => s.copyWith(notice: AppNotice(NoticeKind.forgetUnrevoked, error: error)));
@@ -586,7 +613,6 @@ class AppController {
     final host = _state.value.paired.where((p) => p.hostId == hostId).firstOrNull;
     if (host == null) return;
     disconnect();
-    _grants.clear();
     final epoch = _epoch;
     // One endpoint object per host, kept across reconnects: it is where a
     // fresher address list from `GET /hosts` lands.
@@ -594,7 +620,7 @@ class AppController {
     final rc = RcClient(
       endpoint: endpoint,
       identity: await identity(),
-      credentials: _grants,
+      credentials: _grants.forHost(host.hostId, host.deviceId),
       carriers: _carriers,
       config: clientConfig,
     );
@@ -1315,7 +1341,7 @@ class AppController {
   Future<HistoryRepository?> historyRepository() async {
     final host = _state.value.activeHost;
     if (host == null) return null;
-    return HistoryRepository(backend: backend, identity: await identity(), hostId: host.hostId);
+    return HistoryRepository(backend: backend, identity: await identity(), hostId: host.hostId, deviceId: host.deviceId);
   }
 
   // --- settings ------------------------------------------------------------------------------
@@ -1368,49 +1394,194 @@ class AppController {
   }
 }
 
-/// Grants for the active host, fetched from the backend and cached until
-/// they expire. `rc-access` lasts an hour, which is also how long LAN mode
-/// survives with the backend unreachable (spec §8).
-class _GrantCache extends Credentials {
+/// Grants per paired host — per host and this phone's device row there —
+/// fetched from the backend and cached until they expire. `rc-access` lasts
+/// an hour and is used until then (spec §8), which is also how long LAN mode
+/// survives with the backend unreachable (§8.4). Opening a computer again
+/// reuses its grant: fetching one on every open spent the per-user `/grant`
+/// budget that all the account's phones share, until `/grant` answered 429
+/// and not even the LAN could be had. A grant is dropped only when it was
+/// refused (see [_HostGrants]).
+///
+/// A computer opened again [_reopenAge] or more after the backend was last
+/// asked for its grant asks for a new one first: the grant carries the
+/// device's scopes, a scope widened on the desktop since is told only to
+/// devices connected right then, and the old grant would keep it from this
+/// phone for up to an hour. So does a grant the relay refused (marked
+/// `stale`, see [relayRefused]). The cached one still serves when the
+/// backend cannot give another, or not within [_reopenWait] — not when it
+/// says the pairing is over.
+class _GrantCache {
   _GrantCache(this._app);
+
+  static const _reopenAge = Duration(minutes: 5);
+
+  /// How long an open, or a round after the relay refused, waits on that new
+  /// grant while it holds one still good. A backend out of reach can take a
+  /// connect timeout of 10 s to say so, more behind a refresh: up to 22 s of
+  /// "connecting" that the LAN, there all along, did not need (spec §8.4).
+  static const _reopenWait = Duration(seconds: 3);
+
+  /// Within one outage of a host, how often the relay refusing the upgrade
+  /// has the backend asked again whether the device stands (spec §10.2).
+  static const _relayRecheck = Duration(minutes: 10);
 
   final AppController _app;
   final Mutex _lock = Mutex();
-  String? _cached;
-  int _expiresAt = 0;
+  final Map<(String, String), ({String grant, int expiresAt, int askedAt, bool stale})> _cached = {};
+
+  /// Per host: when, since it was last connected, the backend last had its
+  /// say on the device — a grant issued, or about to be asked for because
+  /// the relay refused. A computer opened again keeps it: the outage goes on.
+  /// Not the grant asked for again because the host refused the last one:
+  /// that ask is counted apart (spec §10.2).
+  final Map<(String, String), int> _checkedAt = {};
+
+  /// Per host: a fresh grant was fetched because the host refused the one in
+  /// hand, since it was last connected. Kept across a computer opened again,
+  /// as [_checkedAt] is: the outage goes on.
+  final Set<(String, String)> _regranted = {};
+
+  /// What the client for [hostId] asks.
+  Credentials forHost(String hostId, String deviceId) => _HostGrants(this, (hostId, deviceId));
+
+  /// [opening]: the first ask of a computer the user has just opened.
+  Future<String> grant((String, String) key, {required bool fresh, bool opening = false}) => _lock.run(() async {
+        final now = clock.now().millisecondsSinceEpoch;
+        final cached = _cached[key];
+        final usable = !fresh && cached != null && now < cached.expiresAt - 60000;
+        final renew = usable && (cached.stale || opening && now - cached.askedAt >= _reopenAge.inMilliseconds);
+        if (usable && !renew) return cached.grant;
+        // Refused: not to be offered again should the fetch fail.
+        if (fresh) _cached.remove(key);
+        if (!usable) return _fetch(key, checked: !fresh);
+        // Only renewing one still good: no answer, the limit, or an answer
+        // slow to come is no reason to go without it — LAN mode lives on it
+        // (spec §8.4). One that comes late is still taken (see [_fetch]); a
+        // refusal for good ends it.
+        try {
+          return await _fetch(key).timeout(_reopenWait);
+        } on TimeoutException {
+          // Below.
+        } on RcException catch (refusal) {
+          if (refusal.code != 'grant') rethrow;
+        }
+        // Asked: not again on every open, nor every round, while the backend
+        // cannot answer.
+        if (_cached[key]?.grant == cached.grant) {
+          _cached[key] = (grant: cached.grant, expiresAt: cached.expiresAt, askedAt: now, stale: false);
+        }
+        return cached.grant;
+      });
+
+  /// `/grant`, remembered; refused for good, the grant in hand is dropped.
+  /// So also when the open that asked has gone on without the answer.
+  Future<String> _fetch((String, String) key, {bool checked = true}) async {
+    final GrantResponse response;
+    try {
+      response = await _app.backend.grant(key.$1, key.$2);
+    } on BackendException catch (error) {
+      final refusal = await _refusal(error);
+      if (refusal.code != 'grant') drop(key);
+      throw refusal;
+    }
+    remember(key.$1, key.$2, response, checked: checked);
+    return response.grant;
+  }
+
+  void remember(String hostId, String deviceId, GrantResponse response, {bool checked = true}) {
+    final now = clock.now().millisecondsSinceEpoch;
+    var expiresAt = response.expiresAt > 1000000000000 ? response.expiresAt : response.expiresAt * 1000;
+    if (expiresAt <= now) expiresAt = now + 3600000;
+    _cached[(hostId, deviceId)] = (grant: response.grant, expiresAt: expiresAt, askedAt: now, stale: false);
+    if (checked) _checkedAt[(hostId, deviceId)] = now;
+  }
+
+  /// The relay refused the upgrade (403/404): the device revoked, or it or
+  /// its host deleted — or a firewall in front of the relay refusing
+  /// everyone. The grant is kept, but `stale`: the next round asks `/grant`
+  /// first, whose answer settles it, and LAN mode keeps the grant while the
+  /// backend cannot answer. Once in an outage — not when the backend has had
+  /// its say since the host was last connected, which is that answer — and
+  /// then every [_relayRecheck]. True when the next round asks.
+  bool relayRefused((String, String) key) {
+    final now = clock.now().millisecondsSinceEpoch;
+    final last = _checkedAt[key];
+    if (last != null && now - last < _relayRecheck.inMilliseconds) return false;
+    _checkedAt[key] = now;
+    final cached = _cached[key];
+    if (cached != null) _cached[key] = (grant: cached.grant, expiresAt: cached.expiresAt, askedAt: cached.askedAt, stale: true);
+    return true;
+  }
+
+  /// Connected: the outage, if there was one, is over.
+  void connected((String, String) key) {
+    _checkedAt.remove(key);
+    _regranted.remove(key);
+  }
+
+  /// [grantRefusal]; and a backend from before `COMPANION_DISABLED` refuses
+  /// with a sentence only (200, `success:false`), so `/config` — which still
+  /// answers — is asked whether that was remote control being off.
+  Future<RcException> _refusal(BackendException error) async {
+    final refusal = grantRefusal(error);
+    if (refusal.code != 'grant' || error.code != 'server' || error.status != 200) return refusal;
+    try {
+      if (!(await _app.backend.companionConfig()).enabled) return RcException('companion-disabled', cause: error);
+    } catch (_) {}
+    return refusal;
+  }
+
+  void drop((String, String) key) => _cached.remove(key);
+
+  /// Signed out: the grants were the account's.
+  void clear() {
+    _cached.clear();
+    _checkedAt.clear();
+    _regranted.clear();
+  }
+}
+
+/// One host's grant, for its [RcClient]. Dropped when the host would not
+/// take it (a fresh one is asked for), when the host kicked this device for
+/// changed scopes, when the relay said the bearer is no good, and when it
+/// said in the handshake that the device is revoked. Marked for the backend
+/// to settle when the relay refused the upgrade (see
+/// [_GrantCache.relayRefused]).
+class _HostGrants extends Credentials {
+  _HostGrants(this._cache, this._key);
+
+  final _GrantCache _cache;
+  final (String, String) _key;
+
+  /// One per [AppController.connect]: its first ask is the computer opened.
+  bool _asked = false;
 
   @override
-  Future<String> grant({required bool fresh}) => _lock.run(() async {
-        final host = _app.state.activeHost;
-        if (host == null) throw const RcException('no-host');
-        final now = clock.now().millisecondsSinceEpoch;
-        final cached = _cached;
-        if (!fresh && cached != null && now < _expiresAt - 60000) return cached;
-        final GrantResponse response;
-        try {
-          response = await _app.backend.grant(host.hostId, host.deviceId);
-        } on BackendException catch (error) {
-          throw grantRefusal(error);
-        }
-        _cached = response.grant;
-        _expiresAt = response.expiresAt > 1000000000000 ? response.expiresAt : response.expiresAt * 1000;
-        if (_expiresAt <= now) _expiresAt = now + 3600000;
-        return response.grant;
-      });
+  Future<String> grant({required bool fresh}) {
+    final opening = !_asked;
+    _asked = true;
+    return _cache.grant(_key, fresh: fresh, opening: opening);
+  }
 
   @override
   Future<void> onUnauthorized() async {
-    await _app.backend.invalidateAccessToken();
-    clear();
+    await _cache._app.backend.invalidateAccessToken();
+    _cache.drop(_key);
   }
 
-  /// The host kicked this device because its scopes changed or it was
-  /// revoked (spec §6.5): the cached grant still lists the old scopes.
   @override
-  Future<void> onDropped() async => clear();
+  Future<void> onDropped() async => _cache.drop(_key);
 
-  void clear() {
-    _cached = null;
-    _expiresAt = 0;
-  }
+  @override
+  Future<bool> onRelayRefused() async => _cache.relayRefused(_key);
+
+  @override
+  void onConnected() => _cache.connected(_key);
+
+  @override
+  bool mayRegrant() => !_cache._regranted.contains(_key);
+
+  @override
+  void onRegrant() => _cache._regranted.add(_key);
 }

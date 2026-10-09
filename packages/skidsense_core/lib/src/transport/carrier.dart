@@ -84,13 +84,18 @@ abstract interface class CarrierFactory {
 }
 
 /// The carrier could not be opened at all (refused, timed out, DNS…).
-/// [reason]: `refused`, `timeout`, `no-credentials`, `no-relay`, `upgrade`
-/// (the far end answered but not as a WebSocket), `too-large`, or `io`.
+/// [reason]: `refused`, `timeout`, `tls`, `no-credentials` (signed out),
+/// `credentials-unavailable` (the bearer could not be had right now — the
+/// backend unreachable, say; [cause] says why), `no-relay`, `too-large`,
+/// `io`, or what the relay's upgrade was answered with: `unauthorized`
+/// (401), `forbidden` (403), `not-found` (404), `rate-limited` (429), and
+/// `upgrade` for anything else that is not a WebSocket.
 class CarrierUnavailable implements Exception {
-  const CarrierUnavailable(this.reason, [this.detail]);
+  const CarrierUnavailable(this.reason, {this.detail, this.cause});
 
   final String reason;
   final String? detail;
+  final Object? cause;
 
   @override
   String toString() => 'CarrierUnavailable($reason${detail == null ? '' : ': $detail'})';
@@ -105,7 +110,7 @@ Future<Carrier> openBounded(CarrierFactory carriers, HostRoute route, CarrierTar
   final timer = Timer(timeout, () {
     if (done) return;
     done = true;
-    completer.completeError(CarrierUnavailable('timeout', route.describe()));
+    completer.completeError(CarrierUnavailable('timeout', detail: route.describe()));
   });
   Future<Carrier>.sync(() => carriers.open(route, target, timeout: timeout)).then((carrier) {
     if (done) {

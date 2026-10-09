@@ -88,6 +88,14 @@ class L10nZh extends L10n {
   String get serverAddress => '服务器';
 
   @override
+  String serverAddressUsed(String address) {
+    return '将使用 $address';
+  }
+
+  @override
+  String get serverAddressInvalid => '请输入服务器地址，例如 https://example.com';
+
+  @override
   String get username => '用户名';
 
   @override
@@ -131,6 +139,15 @@ class L10nZh extends L10n {
   String get captchaOnSignIn => '登录时会弹出人机验证。';
 
   @override
+  String get captchaLoading => '正在加载人机验证…';
+
+  @override
+  String get captchaLoadFailed => '人机验证加载失败';
+
+  @override
+  String get captchaLoadFailedHint => '请检查网络连接，然后重试。';
+
+  @override
   String get passwordLoginDisabled => '这个服务器关闭了密码登录。';
 
   @override
@@ -155,6 +172,10 @@ class L10nZh extends L10n {
 
   @override
   String get verify => '验证';
+
+  @override
+  String get twoFactorPasskeyOnly =>
+      '这个账号的二次验证是通行密钥（Passkey），App 暂不支持。请先在网页端开启两步验证并绑定验证器 App，再回到这里用它的验证码登录。';
 
   @override
   String get hostsTitle => '我的电脑';
@@ -1260,6 +1281,11 @@ class L10nZh extends L10n {
   }
 
   @override
+  String errRouteReason(String route, String reason) {
+    return '$route：$reason';
+  }
+
+  @override
   String get errUnreachable => '无法连接';
 
   @override
@@ -1320,6 +1346,9 @@ class L10nZh extends L10n {
   String errGrant(String error) {
     return '无法获取授权凭证：$error';
   }
+
+  @override
+  String get errCompanionDisabled => '服务器未启用远程控制';
 
   @override
   String get errNoHost => '还没有选择电脑';
@@ -1393,6 +1422,9 @@ class L10nZh extends L10n {
   String get relayShutdown => '中继服务正在重启';
 
   @override
+  String get relayHostClosed => '电脑结束了这个连接';
+
+  @override
   String relayOther(String code) {
     return '中继拒绝了连接（$code）';
   }
@@ -1406,7 +1438,7 @@ class L10nZh extends L10n {
   String get carrierRefused => '被拒绝';
 
   @override
-  String get carrierNoCredentials => '暂时取不到登录凭证（服务器不可达或登录已过期）';
+  String get carrierNoCredentials => '未登录';
 
   @override
   String get carrierNoRelay => '没有中继地址';
@@ -1416,6 +1448,15 @@ class L10nZh extends L10n {
 
   @override
   String get carrierTls => '安全连接失败';
+
+  @override
+  String get carrierForbidden => '服务器拒绝了这台手机';
+
+  @override
+  String get carrierNotFound => '服务器上找不到这次配对或中继端点';
+
+  @override
+  String get carrierCredentialsUnavailable => '暂时无法确认登录状态';
 
   @override
   String backendServer(String message) {
@@ -1444,6 +1485,16 @@ class L10nZh extends L10n {
   }
 
   @override
+  String backendRefreshFailed(int status) {
+    return '暂时无法更新登录状态（HTTP $status），请稍后再试';
+  }
+
+  @override
+  String backendRefreshFailedIn(int status, int seconds) {
+    return '暂时无法更新登录状态（HTTP $status），请在 $seconds 秒后再试';
+  }
+
+  @override
   String backendUnparsable(String base) {
     return '服务器返回了无法解析的内容（$base 是不是填错了？）';
   }
@@ -1459,6 +1510,14 @@ class L10nZh extends L10n {
 
   @override
   String get backendVerifyFailed => '验证码错误或已过期';
+
+  @override
+  String get backendRateLimited => '请求太频繁，请稍后再试';
+
+  @override
+  String backendRateLimitedIn(int seconds) {
+    return '请求太频繁，请在 $seconds 秒后再试';
+  }
 
   @override
   String get pairErrNotSignedIn => '请先登录';
@@ -1577,6 +1636,14 @@ class L10nZhHant extends L10nZh {
   String get serverAddress => '伺服器';
 
   @override
+  String serverAddressUsed(String address) {
+    return '將使用 $address';
+  }
+
+  @override
+  String get serverAddressInvalid => '請輸入伺服器位址，例如 https://example.com';
+
+  @override
   String get username => '使用者名稱';
 
   @override
@@ -1620,6 +1687,15 @@ class L10nZhHant extends L10nZh {
   String get captchaOnSignIn => '登入時會跳出真人驗證。';
 
   @override
+  String get captchaLoading => '正在載入真人驗證…';
+
+  @override
+  String get captchaLoadFailed => '真人驗證載入失敗';
+
+  @override
+  String get captchaLoadFailedHint => '請檢查網路連線，然後再試一次。';
+
+  @override
   String get passwordLoginDisabled => '這個伺服器關閉了密碼登入。';
 
   @override
@@ -1644,6 +1720,10 @@ class L10nZhHant extends L10nZh {
 
   @override
   String get verify => '驗證';
+
+  @override
+  String get twoFactorPasskeyOnly =>
+      '這個帳號的第二步驗證是通行金鑰（Passkey），App 目前還不支援。請先到網頁版開啟兩步驟驗證並綁定驗證器 App，再回到這裡用它的驗證碼登入。';
 
   @override
   String get hostsTitle => '我的電腦';
@@ -2752,6 +2832,11 @@ class L10nZhHant extends L10nZh {
   }
 
   @override
+  String errRouteReason(String route, String reason) {
+    return '$route：$reason';
+  }
+
+  @override
   String get errUnreachable => '無法連線';
 
   @override
@@ -2812,6 +2897,9 @@ class L10nZhHant extends L10nZh {
   String errGrant(String error) {
     return '無法取得授權憑證：$error';
   }
+
+  @override
+  String get errCompanionDisabled => '伺服器未啟用遠端控制';
 
   @override
   String get errNoHost => '尚未選擇電腦';
@@ -2885,6 +2973,9 @@ class L10nZhHant extends L10nZh {
   String get relayShutdown => '中繼服務正在重新啟動';
 
   @override
+  String get relayHostClosed => '電腦結束了這個連線';
+
+  @override
   String relayOther(String code) {
     return '中繼拒絕了連線（$code）';
   }
@@ -2898,7 +2989,7 @@ class L10nZhHant extends L10nZh {
   String get carrierRefused => '被拒絕';
 
   @override
-  String get carrierNoCredentials => '暫時取不到登入憑證（伺服器無法連線或登入已逾時）';
+  String get carrierNoCredentials => '尚未登入';
 
   @override
   String get carrierNoRelay => '沒有中繼位址';
@@ -2908,6 +2999,15 @@ class L10nZhHant extends L10nZh {
 
   @override
   String get carrierTls => '安全連線失敗';
+
+  @override
+  String get carrierForbidden => '伺服器拒絕了這支手機';
+
+  @override
+  String get carrierNotFound => '伺服器上找不到這次配對或中繼端點';
+
+  @override
+  String get carrierCredentialsUnavailable => '暫時無法確認登入狀態';
 
   @override
   String backendServer(String message) {
@@ -2936,6 +3036,16 @@ class L10nZhHant extends L10nZh {
   }
 
   @override
+  String backendRefreshFailed(int status) {
+    return '暫時無法更新登入狀態（HTTP $status），請稍後再試';
+  }
+
+  @override
+  String backendRefreshFailedIn(int status, int seconds) {
+    return '暫時無法更新登入狀態（HTTP $status），請於 $seconds 秒後再試';
+  }
+
+  @override
   String backendUnparsable(String base) {
     return '伺服器回傳了無法解析的內容（$base 是不是填錯了？）';
   }
@@ -2951,6 +3061,14 @@ class L10nZhHant extends L10nZh {
 
   @override
   String get backendVerifyFailed => '驗證碼錯誤或已逾時';
+
+  @override
+  String get backendRateLimited => '請求太頻繁，請稍後再試';
+
+  @override
+  String backendRateLimitedIn(int seconds) {
+    return '請求太頻繁，請於 $seconds 秒後再試';
+  }
 
   @override
   String get pairErrNotSignedIn => '請先登入';

@@ -3,6 +3,29 @@ import 'package:skidsense_core/skidsense_core.dart';
 import '../l10n/gen/app_localizations.dart';
 import 'material.dart';
 
+/// Set while a waiting connection's error is worded: the line counts down to
+/// the retry itself, so the error does not name a wait as well.
+var _waitShown = false;
+
+String _counting(String Function() describe) {
+  _waitShown = true;
+  try {
+    return describe();
+  } finally {
+    _waitShown = false;
+  }
+}
+
+/// Whole seconds, rounded up: one second left is not "0 s".
+int _ceilSeconds(Duration wait) => (wait.inMilliseconds / 1000).ceil();
+
+/// The seconds an error says to wait, when it says and they are not counted
+/// down beside it.
+int? _shownWait(BackendException error) => switch (error.retryAfter) {
+      final Duration wait when !_waitShown && wait > Duration.zero => _ceilSeconds(wait),
+      _ => null,
+    };
+
 /// Words for what the core reports as data: errors, states, routes, times.
 extension Describe on L10n {
   String route(HostRoute route) => switch (route) {
@@ -16,6 +39,8 @@ extension Describe on L10n {
     return switch (error) {
       RemoteCallError(:final code, :final message) => (message?.trim().isNotEmpty ?? false) ? message! : hsrOther(code),
       HandshakeRejected(:final code) => _handshake(code),
+      // The desktop's own reason for ending the session, as it wrote it.
+      RelayRejected(code: 'host-closed', :final message) when message?.trim().isNotEmpty ?? false => message!.trim(),
       RelayRejected(:final code) => _relay(code),
       HostBye(:final message) => (message?.trim().isNotEmpty ?? false) ? errByeReason(message!) : errBye,
       HelloRefused(:final message) =>
@@ -47,7 +72,7 @@ extension Describe on L10n {
         final cause = error.cause;
         final why = cause is CarrierUnavailable ? _carrierReason(cause) : null;
         if (at == null) return errUnreachable;
-        return why == null ? errUnreachableRoute(route(at)) : '${route(at)}: $why';
+        return why == null ? errUnreachableRoute(route(at)) : errRouteReason(route(at), why);
       case 'no-route':
         return errNoRoute;
       case 'no-host':
@@ -60,6 +85,8 @@ extension Describe on L10n {
         return error.detail == 'gone' ? errHostGone : errRevoked;
       case 'grant':
         return errGrant(this.error(error.cause));
+      case 'companion-disabled':
+        return errCompanionDisabled;
       case 'upload-desync':
         return errUploadDesync;
       case 'upload-incomplete':
@@ -108,6 +135,7 @@ extension Describe on L10n {
         'too-large' => relayTooLarge,
         'superseded' => relaySuperseded,
         'shutdown' => relayShutdown,
+        'host-closed' => relayHostClosed,
         _ => relayOther(code),
       };
 
@@ -118,6 +146,14 @@ extension Describe on L10n {
         'upgrade' => carrierUpgrade,
         'tls' => carrierTls,
         'unauthorized' => relayUnauthorized,
+        'forbidden' => carrierForbidden,
+        'not-found' => carrierNotFound,
+        'rate-limited' => relayRateLimited,
+        // The refresh behind the relay's bearer could not be settled: why.
+        'credentials-unavailable' => switch (error.cause) {
+            final BackendException cause => backend(cause),
+            _ => carrierCredentialsUnavailable,
+          },
         'too-large' => errTooLarge,
         'timeout' => errTimeout,
         _ => null,
@@ -126,11 +162,23 @@ extension Describe on L10n {
   String _carrier(CarrierUnavailable error) => _carrierReason(error) ?? errUnreachable;
 
   String backend(BackendException error) => switch (error.code) {
+        // The refresh in front of the call answered: its status is the
+        // refresh endpoint's, its message only that status in English. What
+        // failed is renewing the sign-in, for now: the session stays, and a
+        // pause after a 5xx (or a 429) says when to try again.
+        'server' || 'http' when error.fromRefresh && error.status >= 400 && error.status != 429 => switch (_shownWait(error)) {
+            final int seconds => backendRefreshFailedIn(error.status, seconds),
+            _ => backendRefreshFailed(error.status),
+          },
         'server' => backendServer(error.message ?? ''),
         'not-signed-in' => backendNotSignedIn,
         'session-expired' => backendSessionExpired,
         'unreachable' => backendUnreachable(error.base ?? ''),
         'insecure-server' => backendInsecure(error.base ?? ''),
+        'http' when error.status == 429 => switch (_shownWait(error)) {
+            final int seconds => backendRateLimitedIn(seconds),
+            _ => backendRateLimited,
+          },
         'http' => backendHttp(error.status),
         'unparsable' => backendUnparsable(error.base ?? ''),
         'bad-data' => backendBadData,
@@ -160,7 +208,7 @@ extension Describe on L10n {
             ? statusConnectedLimited(this.route(route), ((relayBytesPerSecond + 512) ~/ 1024))
             : statusConnected(this.route(route)),
         ClientConnecting(:final via) => via == null ? statusAuthorizing : statusConnecting(route(via)),
-        ClientWaiting(:final error, :final retryIn) => statusWaiting(this.error(error), (retryIn.inMilliseconds / 1000).ceil()),
+        ClientWaiting(:final error, :final retryIn) => statusWaiting(_counting(() => this.error(error)), _ceilSeconds(retryIn)),
         ClientFailed(:final error) => statusFailed(this.error(error)),
         ClientIdle() => statusIdle,
       };

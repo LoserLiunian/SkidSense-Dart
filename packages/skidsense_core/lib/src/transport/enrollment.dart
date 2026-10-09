@@ -23,8 +23,8 @@ final class EnrollTrying extends EnrollProgress {
 /// the PSK, the backend's `rc-enroll` ticket goes in `hello`, and a `welcome`
 /// means the host activated this device and recorded its key locally.
 ///
-/// Tries the QR's LAN addresses first, then the relay (which admits a
-/// pending device as long as its first frame is an enroll `hs1`). The
+/// Tries the QR's LAN addresses first, all at once, then the relay (which
+/// admits a pending device as long as its first frame is an enroll `hs1`). The
 /// connection is closed afterwards; later visits are ordinary `connect`
 /// handshakes with a grant.
 abstract final class Enrollment {
@@ -111,18 +111,30 @@ abstract final class Enrollment {
       lastError = error;
     }
 
-    for (final route in endpoint.routes()) {
-      onProgress?.call(EnrollTrying(route));
-      final timeout = route is RouteLan ? config.lanConnectTimeout : config.relayConnectTimeout;
-      final Carrier carrier;
-      try {
-        carrier = await openBounded(carriers, route, CarrierTarget(payload.hostId, deviceId), timeout);
-      } catch (error) {
-        unreachable(error is CarrierUnavailable && error.reason == 'timeout'
-            ? RcException('timeout', route: route, cause: error)
-            : RcException('unreachable', route: route, cause: error));
-        continue;
-      }
+    // Raced as the client races them (spec §10.5): the QR's LAN addresses
+    // at once, the relay after a head start. Routes that failed — to open,
+    // or after opening — are not raced again.
+    final routes = endpoint.routes();
+    final dead = <HostRoute>{};
+    while (true) {
+      final remaining = routes.where((route) => !dead.contains(route)).toList();
+      if (remaining.isEmpty) break;
+      final opened = await openFastest(
+        carriers,
+        CarrierTarget(payload.hostId, deviceId),
+        remaining,
+        config: config,
+        onOpening: (route) => onProgress?.call(EnrollTrying(route)),
+        failed: (route, error) {
+          dead.add(route);
+          unreachable(error is CarrierUnavailable && error.reason == 'timeout'
+              ? RcException('timeout', route: route, cause: error)
+              : RcException('unreachable', route: route, cause: error));
+        },
+      );
+      if (opened == null) break;
+      final (route, carrier) = opened;
+      dead.add(route);
       try {
         final initiator = Initiator(
           mode: mode,

@@ -89,6 +89,15 @@ class L10nEn extends L10n {
   String get serverAddress => 'Server';
 
   @override
+  String serverAddressUsed(String address) {
+    return 'Will use $address';
+  }
+
+  @override
+  String get serverAddressInvalid =>
+      'Enter the server\'s address, such as https://example.com';
+
+  @override
   String get username => 'Username';
 
   @override
@@ -132,6 +141,16 @@ class L10nEn extends L10n {
   String get captchaOnSignIn => 'A quick human check opens when you sign in.';
 
   @override
+  String get captchaLoading => 'Loading the human check…';
+
+  @override
+  String get captchaLoadFailed => 'The human check didn\'t load';
+
+  @override
+  String get captchaLoadFailedHint =>
+      'Check the network connection, then try again.';
+
+  @override
   String get passwordLoginDisabled =>
       'This server has password sign-in turned off.';
 
@@ -159,6 +178,10 @@ class L10nEn extends L10n {
 
   @override
   String get verify => 'Verify';
+
+  @override
+  String get twoFactorPasskeyOnly =>
+      'This account\'s second step is a passkey, which the app can\'t use yet. On the web, turn on two-step verification with an authenticator app, then sign in here with its code.';
 
   @override
   String get hostsTitle => 'Computers';
@@ -1364,6 +1387,11 @@ class L10nEn extends L10n {
   }
 
   @override
+  String errRouteReason(String route, String reason) {
+    return '$route: $reason';
+  }
+
+  @override
   String get errUnreachable => 'Can\'t connect';
 
   @override
@@ -1428,6 +1456,10 @@ class L10nEn extends L10n {
   String errGrant(String error) {
     return 'Could not get authorization: $error';
   }
+
+  @override
+  String get errCompanionDisabled =>
+      'Remote control is not turned on on this server';
 
   @override
   String get errNoHost => 'No computer selected';
@@ -1511,6 +1543,9 @@ class L10nEn extends L10n {
   String get relayShutdown => 'The relay is restarting';
 
   @override
+  String get relayHostClosed => 'The computer ended this connection';
+
+  @override
   String relayOther(String code) {
     return 'The relay refused ($code)';
   }
@@ -1524,8 +1559,7 @@ class L10nEn extends L10n {
   String get carrierRefused => 'refused';
 
   @override
-  String get carrierNoCredentials =>
-      'no sign-in to show the relay (server unreachable, or sign-in expired)';
+  String get carrierNoCredentials => 'not signed in';
 
   @override
   String get carrierNoRelay => 'no relay address';
@@ -1535,6 +1569,17 @@ class L10nEn extends L10n {
 
   @override
   String get carrierTls => 'secure connection failed';
+
+  @override
+  String get carrierForbidden => 'the server refused this phone';
+
+  @override
+  String get carrierNotFound =>
+      'the server has no such pairing or relay endpoint';
+
+  @override
+  String get carrierCredentialsUnavailable =>
+      'sign-in could not be checked right now';
 
   @override
   String backendServer(String message) {
@@ -1563,6 +1608,22 @@ class L10nEn extends L10n {
   }
 
   @override
+  String backendRefreshFailed(int status) {
+    return 'Couldn\'t renew the sign-in for now (HTTP $status). Try again later.';
+  }
+
+  @override
+  String backendRefreshFailedIn(int status, int seconds) {
+    String _temp0 = intl.Intl.pluralLogic(
+      seconds,
+      locale: localeName,
+      other: '$seconds seconds',
+      one: '1 second',
+    );
+    return 'Couldn\'t renew the sign-in for now (HTTP $status). Try again in $_temp0.';
+  }
+
+  @override
   String backendUnparsable(String base) {
     return 'The server\'s answer could not be read. Is $base the right address?';
   }
@@ -1580,6 +1641,20 @@ class L10nEn extends L10n {
 
   @override
   String get backendVerifyFailed => 'Wrong or expired code';
+
+  @override
+  String get backendRateLimited => 'Too many requests. Try again later.';
+
+  @override
+  String backendRateLimitedIn(int seconds) {
+    String _temp0 = intl.Intl.pluralLogic(
+      seconds,
+      locale: localeName,
+      other: '$seconds seconds',
+      one: '1 second',
+    );
+    return 'Too many requests. Try again in $_temp0.';
+  }
 
   @override
   String get pairErrNotSignedIn => 'Sign in first';

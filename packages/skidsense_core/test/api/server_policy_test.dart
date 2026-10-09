@@ -41,6 +41,46 @@ void main() {
     }
   });
 
+  test('an address as typed: no scheme is https, an upper-case scheme is the same', () {
+    for (final (typed, base) in [
+      ('ai.surise.cn', 'https://ai.surise.cn'),
+      (' ai.surise.cn/ ', 'https://ai.surise.cn'),
+      ('HTTPS://AI.Surise.CN/', 'https://ai.surise.cn'),
+      ('https://ai.surise.cn:443', 'https://ai.surise.cn'),
+      ('Http://192.168.1.20:3000/', 'http://192.168.1.20:3000'),
+      ('localhost:3000', 'https://localhost:3000'),
+      ('https://host.example/new-api/', 'https://host.example/new-api'),
+      ('http://ai.surise.cn', 'http://ai.surise.cn'),
+    ]) {
+      expect(normalizeBackendBase(typed), base, reason: typed);
+    }
+    expect(backendAllowed(normalizeBackendBase('ai.surise.cn')), isTrue);
+    expect(backendAllowed(normalizeBackendBase('HTTPS://ai.surise.cn')), isTrue);
+    expect(backendAllowed(normalizeBackendBase('http://ai.surise.cn')), isFalse, reason: 'cleartext stays refused');
+  });
+
+  test('the client signs in to the https server an address without a scheme names', () async {
+    final sent = <http.BaseRequest>[];
+    final client = BackendClient(
+      http: MockClient((request) async {
+        sent.add(request);
+        return http.Response(
+          request.url.path.endsWith('/api/user/login')
+              ? '{"success":true,"message":"","data":{"access_token":"t","user":{"id":1,"username":"u"}}}'
+              : '{"success":true,"message":"","data":{"enabled":false}}',
+          200,
+        );
+      }),
+      secrets: MemorySecretStore(),
+    );
+    for (final typed in ['ai.surise.cn', 'HTTPS://AI.SURISE.CN/']) {
+      sent.clear();
+      expect(await client.login(typed, 'liunian', 'secret'), isNull);
+      expect(sent.map((r) => r.url.toString()), everyElement(startsWith('https://ai.surise.cn/api/user/login')));
+      expect(client.session.value?.baseUrl, 'https://ai.surise.cn');
+    }
+  });
+
   test('the client refuses a cleartext public server before sending anything', () async {
     final sent = <http.BaseRequest>[];
     final client = BackendClient(

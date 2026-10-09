@@ -338,8 +338,8 @@ class FakeHost {
 
   void sendRaw(String text) => _live!.carrier.send(text);
 
-  Future<void> relayError(String code) async {
-    _live!.carrier.send('{"t":"relay-error","code":"$code","message":"x"}');
+  Future<void> relayError(String code, {String message = 'x'}) async {
+    _live!.carrier.send(jsonEncode({'t': 'relay-error', 'code': code, 'message': message}));
     await _live!.carrier.close();
   }
 
@@ -381,6 +381,11 @@ class FakeCarriers implements CarrierFactory {
   /// LAN addresses that never answer (to exercise the per-address timeout).
   Set<String> blackhole = {};
 
+  /// When set, opening the relay fails with this: how the relay refuses
+  /// before the upgrade (`CarrierUnavailable('forbidden')` for a revoked
+  /// device, say).
+  Object? relayFailure;
+
   @override
   Future<Carrier> open(HostRoute route, CarrierTarget target, {required Duration timeout}) async {
     opened.add(route);
@@ -388,6 +393,8 @@ class FakeCarriers implements CarrierFactory {
       // Never answers; the caller's own bound gives up on it.
       await Completer<void>().future;
     }
+    final failure = relayFailure;
+    if (route is RouteRelay && failure != null) throw failure;
     final host = switch (route) {
       RouteLan() => lan(route),
       RouteRelay() => relay(),

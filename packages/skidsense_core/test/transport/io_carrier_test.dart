@@ -4,6 +4,7 @@ import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:cryptography/dart.dart';
+import 'package:skidsense_core/app.dart' show BackendException;
 import 'package:skidsense_core/protocol.dart';
 import 'package:skidsense_core/transport.dart';
 import 'package:test/test.dart';
@@ -22,6 +23,13 @@ void main() {
       );
 
   const target = CarrierTarget('host-1', 'dev-1');
+
+  IoCarrierFactory relayFactory(int port, {String? path}) => IoCarrierFactory(
+        backendBase: () => 'http://127.0.0.1:$port',
+        relayPath: () async => path,
+        bearer: () async => 'relay-token',
+        pingInterval: null,
+      );
 
   test('speaks to a WebSocket server, sending no Origin and offering no extension', () async {
     final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
@@ -69,6 +77,9 @@ void main() {
   }) async {
     final server = await ServerSocket.bind(InternetAddress.loopbackIPv4, 0);
     server.listen((socket) {
+      // A client that hangs up on what it was sent resets the connection:
+      // the point of most tests here, not a failure of the server.
+      socket.done.ignore();
       final head = BytesBuilder();
       late StreamSubscription<Uint8List> sub;
       sub = socket.listen((data) async {
@@ -83,7 +94,7 @@ void main() {
         try {
           await afterUpgrade(socket);
         } catch (_) {}
-      });
+      }, onError: (Object _) {});
     });
     return server;
   }
@@ -153,7 +164,6 @@ void main() {
   }
 
   test('a refusal, a bad accept key or an unrequested extension is not a carrier', () async {
-    final forbidden = await rawServer((_) {}, response: (_) => 'HTTP/1.1 403 Forbidden\r\nContent-Length: 0\r\n\r\n');
     final unauthorized = await rawServer((_) {}, response: (_) => 'HTTP/1.1 401 Unauthorized\r\nContent-Length: 0\r\n\r\n');
     final badKey = await rawServer((_) {},
         response: (_) => 'HTTP/1.1 101 Switching Protocols\r\nUpgrade: websocket\r\nConnection: Upgrade\r\nSec-WebSocket-Accept: AAAA\r\n\r\n');
@@ -161,14 +171,114 @@ void main() {
         response: (accept) => 'HTTP/1.1 101 Switching Protocols\r\nUpgrade: websocket\r\nConnection: Upgrade\r\n'
             'Sec-WebSocket-Accept: $accept\r\nSec-WebSocket-Extensions: permessage-deflate\r\n\r\n');
     addTearDown(() async {
-      for (final server in [forbidden, unauthorized, badKey, deflate]) {
+      for (final server in [unauthorized, badKey, deflate]) {
         await server.close();
       }
     });
-    expect(await openFailure(forbidden), isA<CarrierUnavailable>().having((e) => e.reason, 'reason', 'upgrade'));
     expect(await openFailure(unauthorized), isA<CarrierUnavailable>().having((e) => e.reason, 'reason', 'unauthorized'));
     expect(await openFailure(badKey), isA<CarrierUnavailable>().having((e) => e.reason, 'reason', 'upgrade'));
     expect(await openFailure(deflate), isA<CarrierUnavailable>().having((e) => e.reason, 'reason', 'upgrade'));
+  });
+
+  /// The relay refuses before the upgrade with a plain HTTP status: a revoked
+  /// device (403) and a device or host that is gone (404) used to read as
+  /// "not a SkidSense endpoint", retried for up to an hour.
+  test('the status a refused upgrade was answered with is told apart', () async {
+    final statuses = {
+      'HTTP/1.1 401 Unauthorized': 'unauthorized',
+      'HTTP/1.1 403 Forbidden': 'forbidden',
+      'HTTP/1.1 404 Not Found': 'not-found',
+      'HTTP/1.1 429 Too Many Requests': 'rate-limited',
+      'HTTP/1.1 502 Bad Gateway': 'upgrade',
+      'HTTP/1.1 200 OK': 'upgrade',
+    };
+    for (final MapEntry(key: line, value: reason) in statuses.entries) {
+      final server = await rawServer((_) {}, response: (_) => '$line\r\nContent-Length: 2\r\n\r\n{}');
+      addTearDown(server.close);
+      expect(await openFailure(server), isA<CarrierUnavailable>().having((e) => e.reason, 'reason', reason).having((e) => e.detail, 'detail', line),
+          reason: line);
+      Object? relayError;
+      try {
+        await relayFactory(server.port).open(const RouteRelay(), target, timeout: const Duration(seconds: 5));
+      } catch (error) {
+        relayError = error;
+      }
+      expect(relayError, isA<CarrierUnavailable>().having((e) => e.reason, 'reason', reason), reason: 'over the relay: $line');
+    }
+  });
+
+  test('a bearer that cannot be had now is not a sign-out', () async {
+    const offline = BackendException('unreachable');
+    final failing = IoCarrierFactory(
+      backendBase: () => 'https://ai.surise.cn',
+      relayPath: () async => null,
+      bearer: () async => throw offline,
+    );
+    await expectLater(
+      failing.open(const RouteRelay(), target, timeout: const Duration(seconds: 5)),
+      throwsA(isA<CarrierUnavailable>()
+          .having((e) => e.reason, 'reason', 'credentials-unavailable')
+          .having((e) => e.cause, 'cause', same(offline))),
+    );
+    final signedOut = IoCarrierFactory(
+      backendBase: () => 'https://ai.surise.cn',
+      relayPath: () async => null,
+      bearer: () async => null,
+    );
+    await expectLater(
+      signedOut.open(const RouteRelay(), target, timeout: const Duration(seconds: 5)),
+      throwsA(isA<CarrierUnavailable>().having((e) => e.reason, 'reason', 'no-credentials')),
+    );
+  });
+
+  /// The relay connection itself, over a real socket: what the backend sees
+  /// of the upgrade, and a message each way.
+  test('the relay route opens a real connection to the backend', () async {
+    final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+    final seen = Completer<HttpRequest>();
+    server.listen((request) async {
+      seen.complete(request);
+      final socket = await WebSocketTransformer.upgrade(request);
+      socket.listen((message) => socket.add('relayed:$message'));
+    });
+    addTearDown(() => server.close(force: true));
+
+    final carrier = await relayFactory(server.port, path: '/api/companion/ws')
+        .open(const RouteRelay(), target, timeout: const Duration(seconds: 5));
+    carrier.send('{"t":"hs1"}');
+    expect(await carrier.receive(timeout: const Duration(seconds: 5)), 'relayed:{"t":"hs1"}');
+    final request = await seen.future;
+    expect(request.uri.path, '/api/companion/ws');
+    expect(request.uri.queryParameters, {'role': 'device', 'host_id': 'host-1', 'device_id': 'dev-1'});
+    expect(request.headers.value('authorization'), 'Bearer relay-token');
+    expect(request.headers.value('host'), '127.0.0.1:${server.port}');
+    expect(request.headers.value('origin'), isNull);
+    await carrier.close();
+  });
+
+  /// The relay answers pings only between frames it forwards, and waits out
+  /// the account's bandwidth debt before reading the next: a pong can be a
+  /// minute late. `dart:io` drops a socket whose pong is one interval late.
+  test('the relay carrier does not hang up on a pong that is late', () async {
+    final server = await rawServer((socket) async {
+      // Upgraded, then reads nothing and answers nothing.
+      await Completer<void>().future;
+    });
+    addTearDown(server.close);
+    final eager = IoCarrierFactory(
+      backendBase: () => 'http://127.0.0.1:${server.port}',
+      relayPath: () async => null,
+      bearer: () async => 'relay-token',
+      pingInterval: const Duration(milliseconds: 100),
+    );
+    final relay = await eager.open(const RouteRelay(), target, timeout: const Duration(seconds: 5));
+    await expectLater(relay.receive(timeout: const Duration(seconds: 1)), throwsA(isA<TimeoutException>()),
+        reason: 'still open after ten ping intervals');
+    await relay.close();
+
+    // The LAN keeps its pings: a desktop answers at once, and a silent one is dead.
+    final lan = await eager.open(RouteLan('127.0.0.1', server.port), target, timeout: const Duration(seconds: 5));
+    expect(await lan.receive(timeout: const Duration(seconds: 5)), isNull);
   });
 
   test('a closed port is refused', () async {
@@ -210,14 +320,27 @@ void main() {
     test('is wss on the backend, with the device in the query', () {
       expect(
         IoCarrierFactory.relayUri('https://ai.surise.cn', target).toString(),
-        'wss://ai.surise.cn/api/companion/ws?role=device&host_id=host-1&device_id=dev-1',
+        'wss://ai.surise.cn:443/api/companion/ws?role=device&host_id=host-1&device_id=dev-1',
       );
+    });
+
+    /// `Uri` knows the default ports of http and https only: a wss URL built
+    /// without one says port 0, which is where the relay used to dial — for
+    /// the default backend, and for any https one, since `Uri.parse` drops an
+    /// explicit :443.
+    test('a base without a port gets the default one', () {
+      expect(IoCarrierFactory.relayUri('https://ai.surise.cn', target)!.port, 443);
+      expect(IoCarrierFactory.relayUri('https://ai.surise.cn:443', target)!.port, 443);
+      expect(IoCarrierFactory.relayUri('HTTPS://AI.SURISE.CN/', target)!.port, 443);
+      expect(IoCarrierFactory.relayUri('http://localhost', target)!.port, 80);
+      expect(IoCarrierFactory.relayUri('http://192.168.1.20:80', target)!.port, 80);
+      expect(IoCarrierFactory.relayUri('https://example.com:8443', target)!.port, 8443);
     });
 
     test('takes the configured path, a base path and a port, and ws for http', () {
       expect(
         IoCarrierFactory.relayUri('https://example.com/sub/', target, '/x/ws').toString(),
-        'wss://example.com/sub/x/ws?role=device&host_id=host-1&device_id=dev-1',
+        'wss://example.com:443/sub/x/ws?role=device&host_id=host-1&device_id=dev-1',
       );
       expect(
         IoCarrierFactory.relayUri('http://10.0.0.2:3000', target).toString(),

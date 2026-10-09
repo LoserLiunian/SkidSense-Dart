@@ -4,6 +4,7 @@ import 'dart:typed_data';
 
 import '../protocol/crypto_error.dart';
 import '../protocol/handshake.dart';
+import '../protocol/outer_frames.dart';
 import '../protocol/primitives.dart';
 import '../protocol/protocol.dart';
 import '../util/async_queue.dart';
@@ -101,9 +102,29 @@ abstract class Credentials {
   /// re-authenticate.
   Future<void> onUnauthorized() async {}
 
-  /// The host kicked this device because the cached grant's scopes no longer
-  /// stand (spec §6.5, C5).
+  /// The cached grant must not be used again: the host kicked this device
+  /// because its scopes no longer stand (spec §6.5, C5), or the relay said
+  /// in the handshake that the device is revoked. The next grant comes from
+  /// the backend.
   Future<void> onDropped() async {}
+
+  /// The relay refused the upgrade with 403 or 404: the device revoked, or it
+  /// or its host deleted — or something in front of the relay refusing
+  /// everyone. True when the next grant is asked of the backend first, whose
+  /// answer to `/grant` settles which: the next round then comes at once.
+  Future<bool> onRelayRefused() async => false;
+
+  /// A connection is up with the grant.
+  void onConnected() {}
+
+  /// Whether the host refusing a grant may have a fresh one fetched now:
+  /// once per outage (spec §10.2), and a cache that outlives this client — a
+  /// computer opened again in the same outage — keeps the count. The default
+  /// leaves it to the client's own.
+  bool mayRegrant() => true;
+
+  /// A fresh grant is being fetched because the host refused the last one.
+  void onRegrant() {}
 }
 
 class ClientConfig {
@@ -197,9 +218,13 @@ final class _Permanent extends _Outcome {
 }
 
 final class _Retry extends _Outcome {
-  _Retry(this.error, {required this.freshGrant});
+  _Retry(this.error, {required this.freshGrant, this.soon = false});
   final Object error;
   final bool freshGrant;
+
+  /// Without the usual backoff: the relay refused, and the next round asks
+  /// `/grant` first, whose answer settles it.
+  final bool soon;
 }
 
 sealed class _Opening {}
@@ -217,6 +242,86 @@ final class _OpenFailed extends _Opening {
 }
 
 final class _RelayTurn extends _Opening {}
+
+/// Open the first carrier any of [routes] can give, or null when none can.
+///
+/// The LAN addresses are tried all at once — a desktop advertises every
+/// private address it has (VPN, VM bridges, IPv6) and trying them in turn,
+/// a timeout each, put ten or twenty seconds in front of the relay on every
+/// connect away from home (and every pairing). The relay joins after
+/// [ClientConfig.relayHeadStart], or at once with [relayFirst] or no LAN
+/// address, or as soon as every LAN address has failed. The first carrier
+/// to open wins; one that opens late is closed. [onOpening] hears of each
+/// route as it is tried, [failed] of each that could not be opened.
+Future<(HostRoute, Carrier)?> openFastest(
+  CarrierFactory carriers,
+  CarrierTarget target,
+  List<HostRoute> routes, {
+  ClientConfig config = const ClientConfig(),
+  bool relayFirst = false,
+  void Function(HostRoute route)? onOpening,
+  void Function(HostRoute route, Object error)? failed,
+}) async {
+  final lan = routes.whereType<RouteLan>().toList();
+  final HostRoute? relay = routes.whereType<RouteRelay>().firstOrNull;
+  final outcomes = AsyncQueue<_Opening>();
+  var decided = false;
+  var running = 0;
+  var relayStarted = false;
+
+  void open(HostRoute route) {
+    running += 1;
+    onOpening?.call(route);
+    final timeout = route is RouteLan ? config.lanConnectTimeout : config.relayConnectTimeout;
+    openBounded(carriers, route, target, timeout).then((carrier) {
+      if (decided) {
+        unawaited(carrier.close('superseded'));
+      } else {
+        outcomes.add(_Opened(route, carrier));
+      }
+    }, onError: (Object error) {
+      if (!decided) outcomes.add(_OpenFailed(route, error));
+    });
+  }
+
+  void openRelay() {
+    if (relay == null || relayStarted) return;
+    relayStarted = true;
+    open(relay);
+  }
+
+  for (final route in lan) {
+    open(route);
+  }
+  if (lan.isEmpty || relayFirst) openRelay();
+  final timer = !relayStarted && relay != null ? Timer(config.relayHeadStart, () => outcomes.add(_RelayTurn())) : null;
+
+  _Opened? winner;
+  while (winner == null && (running > 0 || (relay != null && !relayStarted))) {
+    final next = await outcomes.next();
+    switch (next) {
+      case _Opened():
+        running -= 1;
+        winner = next;
+      case _OpenFailed(:final route, :final error):
+        running -= 1;
+        failed?.call(route, error);
+        if (running == 0) openRelay();
+      case _RelayTurn():
+        openRelay();
+      case null:
+        break;
+    }
+  }
+  timer?.cancel();
+  decided = true;
+  outcomes.close();
+  // Carriers that opened after the winner but before `decided`.
+  for (var late = outcomes.poll(); late != null; late = outcomes.poll()) {
+    if (late is _Opened && !identical(late, winner)) unawaited(late.carrier.close('superseded'));
+  }
+  return winner == null ? null : (winner.route, winner.carrier);
+}
 
 /// The connection to one host, kept up: LAN addresses first, then the relay;
 /// exponential backoff between rounds; re-subscribe after every reconnect.
@@ -274,6 +379,12 @@ class RcClient {
   /// is not reported.
   bool _switching = false;
 
+  /// Whether the backend was asked for a new grant since the last connection
+  /// was up, because the host refused the cached one. Asking once tells
+  /// whether the pairing still stands; asking every round only spends the
+  /// per-user `/grant` budget.
+  bool _regranted = false;
+
   String get hostId => _endpoint.hostId;
 
   void start() {
@@ -319,6 +430,8 @@ class RcClient {
         case _Up(:final connection):
           attempt = 0;
           freshGrant = false;
+          _regranted = false;
+          _credentials.onConnected();
           _current = connection;
           final forward = connection.events.listen((event) {
             if (!_events.isClosed) _events.add(event);
@@ -351,8 +464,10 @@ class RcClient {
           // `relay-error` frame, which only the relay route tolerates; it
           // says the session behind the bearer is over, and is final.
           if (why is RelayRejected && why.permanent) {
+            // The cached grant is the revoked device's: a retry asks the backend.
+            await _credentials.onDropped();
             _state.value = ClientFailed(why);
-            await _wake.wait();
+            await _untilRetried(generation);
             continue;
           }
           if (why is RelayRejected && why.code == 'unauthorized') await _credentials.onUnauthorized();
@@ -364,23 +479,43 @@ class RcClient {
           await _wake.wait(timeout: config.backoffBase);
         case _Permanent(:final error):
           _state.value = ClientFailed(error);
-          await _wake.wait();
+          await _untilRetried(generation);
           attempt = 0;
-        case _Retry(:final error, freshGrant: final fresh):
+        case _Retry(:final error, freshGrant: final fresh, :final soon):
           freshGrant = fresh;
-          final backoff = _backoff(attempt);
+          final backoff = soon ? config.backoffBase : _backoff(attempt, error);
           _state.value = ClientWaiting(error, backoff, attempt);
           await _wake.wait(timeout: backoff);
       }
     }
   }
 
-  Duration _backoff(int attempt) {
+  /// After a final failure: wait for [retry] (or [stop]). A wake-up
+  /// remembered from before was asked of the attempt or the connection that
+  /// just ended — every call fires one, through [connection] — and must not
+  /// undo the failure: a revoked device used to reconnect at once with its
+  /// old grant.
+  Future<void> _untilRetried(int generation) async {
+    if (generation != _generation) return;
+    _wake.clear();
+    await _wake.wait();
+  }
+
+  /// The longest `Retry-After` taken at its word; [retry] still cuts it short.
+  static const _retryAfterMax = Duration(hours: 1);
+
+  Duration _backoff(int attempt, [Object? error]) {
     final base = config.backoffBase.inMilliseconds;
     final capped = min(base * (1 << (attempt - 1).clamp(0, 10)), config.backoffMax.inMilliseconds);
     // ±20 % jitter so a fleet of phones does not reconnect in lockstep.
     final jitter = (capped * 0.2 * (_random.nextDouble() * 2 - 1)).round();
-    return Duration(milliseconds: max(capped + jitter, base ~/ 2));
+    final backoff = Duration(milliseconds: max(capped + jitter, base ~/ 2));
+    // A limit that said when it lifts — `/grant`'s per-user one, shared by
+    // all the account's phones — is not asked again sooner: every ask before
+    // then would be refused as well.
+    final after = error is RcException ? error.retryAfter : null;
+    if (after == null || after <= backoff) return backoff;
+    return after < _retryAfterMax ? after : _retryAfterMax;
   }
 
   Future<_Outcome> _connectOnce(int generation, int attempt, bool freshGrant) async {
@@ -391,10 +526,18 @@ class RcClient {
     try {
       grant = await _credentials.grant(fresh: freshGrant);
     } on RcException catch (error) {
-      if (error.code == 'revoked') return _Permanent(error);
-      return _Retry(RcException('grant', cause: error), freshGrant: false);
+      // The backend's final word: the pairing is over, or remote control is
+      // turned off on this server.
+      if (error.code == 'revoked' || error.code == 'companion-disabled') return _Permanent(error);
+      // One that is already a grant failure is passed on as it is, with
+      // the backend's `Retry-After`, rather than worded twice.
+      return _Retry(error.code == 'grant' ? error : RcException('grant', cause: error, retryAfter: error.retryAfter), freshGrant: false);
     } catch (error) {
       return _Retry(RcException('grant', cause: error), freshGrant: false);
+    }
+    if (freshGrant) {
+      _regranted = true;
+      _credentials.onRegrant();
     }
     if (generation != _generation) return _Retry(const ConnectionClosed('closed'), freshGrant: false);
 
@@ -413,21 +556,35 @@ class RcClient {
     // raced again in it.
     final dead = <HostRoute>{};
     var anyLanOpened = false;
+    Future<bool>? relayRefused;
     while (true) {
       final remaining = routes.where((route) => !dead.contains(route)).toList();
       if (remaining.isEmpty) break;
       final opened = await _openFastest(remaining, attempt, (route, error) {
         dead.add(route);
-        // The relay's upgrade said 401: the bearer is spent, not the route.
-        if (error is CarrierUnavailable && error.reason == 'unauthorized') unawaited(_credentials.onUnauthorized());
+        switch (error) {
+          // The relay's upgrade said 401: the bearer is spent, not the route.
+          // Not the LAN's: the desktop never answers so, and a plaintext
+          // answer there is anyone's (C6) — only a reason to try elsewhere.
+          case CarrierUnavailable(reason: 'unauthorized') when route is RouteRelay:
+            unawaited(_credentials.onUnauthorized());
+          // The relay's 403 or 404: the device revoked, or it or its host
+          // deleted — while a grant from before is still cached, and would be
+          // replayed for up to an hour. The credentials have `/grant` settle
+          // it, at once, unless the backend had its say this outage already:
+          // a 403 that is not about the device would otherwise cost a
+          // `/grant` every round. Not the LAN's either.
+          case CarrierUnavailable(reason: 'forbidden' || 'not-found') when route is RouteRelay:
+            relayRefused = _credentials.onRelayRefused();
+        }
         unreachable(_attribute(error, route));
       });
       if (opened == null) break;
-      final route = opened.route;
+      final (route, carrier) = opened;
       if (route is RouteLan) anyLanOpened = true;
       dead.add(route);
       if (generation != _generation) {
-        await opened.carrier.close('client stopped');
+        await carrier.close('client stopped');
         return _Retry(const ConnectionClosed('closed'), freshGrant: false);
       }
       try {
@@ -438,7 +595,7 @@ class RcClient {
           clientStatic: _identity,
         );
         final connection = await RcConnection.establish(
-          carrier: opened.carrier,
+          carrier: carrier,
           route: route,
           initiator: initiator,
           grant: grant,
@@ -461,13 +618,20 @@ class RcClient {
         }
         refused(error);
       } on RelayRejected catch (error) {
-        if (error.permanent) return _Permanent(error);
+        if (error.permanent) {
+          // The cached grant is the revoked device's: a retry asks the backend.
+          await _credentials.onDropped();
+          return _Permanent(error);
+        }
         if (error.code == 'unauthorized') await _credentials.onUnauthorized();
         refused(error);
       } on HelloRefused catch (error) {
         // The host would not take the grant. The next round asks the backend
-        // for a fresh one rather than replaying the cached one.
-        return _Retry(error, freshGrant: true);
+        // for a fresh one rather than replaying the cached one — once: a host
+        // that refuses a fresh grant as well has its own reason (signed in to
+        // another account, say), and every fetch spends the per-user `/grant`
+        // budget that all the account's phones share (spec §8.2).
+        return _Retry(error, freshGrant: !_regranted && _credentials.mayRegrant());
       } on CryptoError catch (error) {
         // A failed confirmation: whatever answered at this address is not the
         // host we pinned. Not fatal — another route may be.
@@ -481,7 +645,7 @@ class RcClient {
         await onLanUnreachable?.call();
       } catch (_) {}
     }
-    return _Retry(lastError, freshGrant: false);
+    return _Retry(lastError, freshGrant: false, soon: await relayRefused ?? false);
   }
 
   static Object _attribute(Object error, HostRoute route) => switch (error) {
@@ -496,75 +660,17 @@ class RcClient {
   Future<Carrier> _openBounded(HostRoute route, Duration timeout) =>
       openBounded(_carriers, route, CarrierTarget(_endpoint.hostId, _endpoint.deviceId), timeout);
 
-  /// Open the first carrier any of [routes] can give.
-  ///
-  /// The LAN addresses are tried all at once — a desktop advertises every
-  /// private address it has (VPN, VM bridges, IPv6) and trying them in turn,
-  /// a timeout each, put ten or twenty seconds in front of the relay on every
-  /// connect away from home. The relay joins after a head start, or at once
-  /// when it is what worked last time, or as soon as every LAN address has
-  /// failed. The first carrier to open wins; one that opens late is closed.
-  Future<_Opened?> _openFastest(List<HostRoute> routes, int attempt, void Function(HostRoute, Object) failed) async {
-    final lan = routes.whereType<RouteLan>().toList();
-    final HostRoute? relay = routes.whereType<RouteRelay>().firstOrNull;
-    final outcomes = AsyncQueue<_Opening>();
-    var decided = false;
-    var running = 0;
-    var relayStarted = false;
-
-    void open(HostRoute route) {
-      running += 1;
-      _state.value = ClientConnecting(route, attempt);
-      final timeout = route is RouteLan ? config.lanConnectTimeout : config.relayConnectTimeout;
-      _openBounded(route, timeout).then((carrier) {
-        if (decided) {
-          unawaited(carrier.close('superseded'));
-        } else {
-          outcomes.add(_Opened(route, carrier));
-        }
-      }, onError: (Object error) {
-        if (!decided) outcomes.add(_OpenFailed(route, error));
-      });
-    }
-
-    void openRelay() {
-      if (relay == null || relayStarted) return;
-      relayStarted = true;
-      open(relay);
-    }
-
-    for (final route in lan) {
-      open(route);
-    }
-    if (lan.isEmpty || _lastGood is RouteRelay) openRelay();
-    final timer = !relayStarted && relay != null ? Timer(config.relayHeadStart, () => outcomes.add(_RelayTurn())) : null;
-
-    _Opened? winner;
-    while (winner == null && (running > 0 || (relay != null && !relayStarted))) {
-      final next = await outcomes.next();
-      switch (next) {
-        case _Opened():
-          running -= 1;
-          winner = next;
-        case _OpenFailed(:final route, :final error):
-          running -= 1;
-          failed(route, error);
-          if (running == 0) openRelay();
-        case _RelayTurn():
-          openRelay();
-        case null:
-          break;
-      }
-    }
-    timer?.cancel();
-    decided = true;
-    outcomes.close();
-    // Carriers that opened after the winner but before `decided`.
-    for (var late = outcomes.poll(); late != null; late = outcomes.poll()) {
-      if (late is _Opened && !identical(late, winner)) unawaited(late.carrier.close('superseded'));
-    }
-    return winner;
-  }
+  /// [openFastest], the relay at once when it is what worked last time.
+  Future<(HostRoute, Carrier)?> _openFastest(List<HostRoute> routes, int attempt, void Function(HostRoute, Object) failed) =>
+      openFastest(
+        _carriers,
+        CarrierTarget(_endpoint.hostId, _endpoint.deviceId),
+        routes,
+        config: config,
+        relayFirst: _lastGood is RouteRelay,
+        onOpening: (route) => _state.value = ClientConnecting(route, attempt),
+        failed: failed,
+      );
 
   /// On the relay: look for the desktop on the LAN every so often, and move
   /// there when it answers and nothing would be lost by the swap. The relay
@@ -576,20 +682,45 @@ class RcClient {
       if (!stillHere()) return;
       final lan = _endpoint.routes().whereType<RouteLan>().toList();
       if (lan.isEmpty) continue;
-      final probes = await Future.wait(lan.map((route) =>
-          _openBounded(route, config.lanConnectTimeout).then<Carrier?>((carrier) => carrier, onError: (Object _) => null)));
-      var found = false;
-      for (final carrier in probes) {
-        if (carrier == null) continue;
-        found = true;
-        unawaited(carrier.close('probe'));
-      }
+      final found = (await Future.wait(lan.map(_hostAnswers))).contains(true);
       if (found && stillHere() && connection.inFlight == 0 && canSwitchRoute()) {
         _switching = true;
         _lastGood = null;
         await connection.close('switching to lan');
         return;
       }
+    }
+  }
+
+  /// Whether the pinned host answers at [route]: the handshake gets as far
+  /// as the host proving its key (`hs2`), and the probe ends there. An
+  /// upgrade alone proves nothing — every desktop listens on the same port,
+  /// and another one at an address this host used to have pulled the phone
+  /// off a working relay every probe, only to refuse it.
+  Future<bool> _hostAnswers(RouteLan route) async {
+    final Carrier carrier;
+    try {
+      carrier = await _openBounded(route, config.lanConnectTimeout);
+    } catch (_) {
+      return false;
+    }
+    try {
+      final initiator = Initiator(
+        mode: HandshakeMode.connect,
+        hostId: _endpoint.hostId,
+        hostStatic: _endpoint.hostKey,
+        clientStatic: _identity,
+      );
+      carrier.send(OuterFrames.encode(initiator.hs1.toJson()));
+      final text = await carrier.receive(timeout: config.lanConnectTimeout);
+      final frame = text == null ? null : OuterFrames.parse(text);
+      if (frame is! OuterHs2) return false;
+      initiator.finish(frame.frame); // throws unless it holds the pinned key
+      return true;
+    } catch (_) {
+      return false;
+    } finally {
+      unawaited(carrier.close('probe'));
     }
   }
 
