@@ -606,12 +606,108 @@ class L10nEn extends L10n {
   String get modelDefault => 'Default';
 
   @override
-  String modelAccount(String account) {
-    return 'Model ($account)';
+  String get noModels => 'No model list available';
+
+  @override
+  String modelDefaultNamed(String model) {
+    return 'Default ($model)';
   }
 
   @override
-  String get noModels => 'No model list available';
+  String get composerModelsLoading => 'Reading the models…';
+
+  @override
+  String get composerRouteCloud => 'Cloud: through your first-party account';
+
+  @override
+  String composerRouteAccount(String account) {
+    return 'Local account: $account';
+  }
+
+  @override
+  String get composerRouteOfficial =>
+      'Local: Anthropic\'s official subscription (forced)';
+
+  @override
+  String get composerRouteCli => 'Local: the agent\'s own configuration';
+
+  @override
+  String get composerAccount => 'Account';
+
+  @override
+  String composerAccountHint(String agent) {
+    return 'Set on the computer: every conversation with $agent uses it from its next turn.';
+  }
+
+  @override
+  String get composerModelsCloud => 'Cloud models';
+
+  @override
+  String composerModelsAccount(String account) {
+    return 'Models on $account';
+  }
+
+  @override
+  String get composerModelsCli => 'The CLI\'s own models';
+
+  @override
+  String get composerModelsOtherAccounts =>
+      'Other accounts (this conversation only)';
+
+  @override
+  String get composerModelsOtherEndpoints =>
+      'Other endpoints (this conversation only)';
+
+  @override
+  String get composerModelsOtherHint =>
+      'Only this conversation uses it; the account set on the computer stays as it is.';
+
+  @override
+  String get composerCloudEmptyTitle => 'No cloud models yet';
+
+  @override
+  String get composerCloudEmptyBody =>
+      'Cloud mode offers only the models assigned to this agent from a cloud key.';
+
+  @override
+  String get composerOpenModels => 'Assign in Models';
+
+  @override
+  String get slashTitle => 'Commands';
+
+  @override
+  String slashCount(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count commands',
+      one: '1 command',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get slashLoading => 'Reading the commands…';
+
+  @override
+  String get slashSourceBuiltin => 'Built-in';
+
+  @override
+  String get slashSourceCommand => 'Command';
+
+  @override
+  String get slashSourceSkill => 'Skill';
+
+  @override
+  String get slashScopeWorkspace => 'This workspace';
+
+  @override
+  String get slashScopeGlobal => 'Global';
+
+  @override
+  String slashAliases(String names) {
+    return 'Also $names';
+  }
 
   @override
   String get effort => 'Thinking';
@@ -1107,6 +1203,58 @@ class L10nEn extends L10n {
       'Your pairings stay on this phone and come back when you sign in again.';
 
   @override
+  String get accountSignedIn => 'Signed in';
+
+  @override
+  String get accountUserId => 'User ID';
+
+  @override
+  String get accountLoading => 'Reading your account…';
+
+  @override
+  String get accountLoadFailed => 'Couldn\'t read your account';
+
+  @override
+  String get accountGroupsLoadFailed => 'Couldn\'t read the groups';
+
+  @override
+  String get accountOffline => 'Can\'t reach the server';
+
+  @override
+  String get accountOfflineBody =>
+      'Check this phone\'s network connection, then try again.';
+
+  @override
+  String get accountQuota => 'Balance and usage';
+
+  @override
+  String get accountQuotaHint => 'In US dollars (USD)';
+
+  @override
+  String get accountBalance => 'Balance';
+
+  @override
+  String get accountUsed => 'Used';
+
+  @override
+  String get accountGroups => 'Groups';
+
+  @override
+  String get accountGroupsHint =>
+      'A call costs its model\'s price times its group\'s ratio. Your keys can use any group here.';
+
+  @override
+  String get accountGroupYours => 'Your group';
+
+  @override
+  String accountGroupRatio(String ratio) {
+    return 'Ratio $ratio';
+  }
+
+  @override
+  String get groupRatioAuto => 'Auto';
+
+  @override
   String get security => 'Security';
 
   @override
@@ -1228,6 +1376,18 @@ class L10nEn extends L10n {
       'The terminal is off by default: inside it the CLI answers its own permission prompts.';
 
   @override
+  String get settingsScopeNote =>
+      'Models & accounts is off by default and only the computer can turn it on: it can point the agents at any server and set their environment — as much as the terminal.';
+
+  @override
+  String get settingsScopeWarning =>
+      'This phone may change models and accounts: it can point the agents at any server and set their environment, enough to run anything on the computer — as much as the terminal.';
+
+  @override
+  String get settingsScopeLocked =>
+      'As much as the terminal: enough to run anything on the computer. Only the computer can turn it on; here it can only be turned off.';
+
+  @override
   String get thisDevice => 'This phone';
 
   @override
@@ -1307,6 +1467,9 @@ class L10nEn extends L10n {
 
   @override
   String get scopeTerminal => 'Terminal';
+
+  @override
+  String get scopeSettings => 'Models & accounts';
 
   @override
   String get lockedTitle => 'SkidSense is locked';
@@ -1691,4 +1854,926 @@ class L10nEn extends L10n {
 
   @override
   String get pairCodeBadKey => 'The computer\'s key in this code is invalid';
+
+  @override
+  String get tabModels => 'Models';
+
+  @override
+  String get modelsTitle => 'Models';
+
+  @override
+  String get modelsReadOnlyTitle => 'View only';
+
+  @override
+  String get modelsReadOnlyBody =>
+      'To change models and accounts from this phone, turn on “Models & accounts” for it under Remote access on the computer.';
+
+  @override
+  String get modelsReadOnlyUnsupported =>
+      'The server this computer uses can\'t let a phone change models and accounts yet: here they can only be viewed.';
+
+  @override
+  String get modelsReadOnlyOldComputer =>
+      'SkidSense on this computer can\'t take these changes from a phone yet: update it on the computer to change them here.';
+
+  @override
+  String get modelsRoute => 'Route';
+
+  @override
+  String get modelsRouteHint =>
+      'Where the agents\' calls go. Switching affects every conversation on this computer.';
+
+  @override
+  String get modelsLocalMode => 'Local';
+
+  @override
+  String get modelsLocalModeHint =>
+      'Each agent uses its own account and subscription on this computer, not the first-party service.';
+
+  @override
+  String get modelsCloudMode => 'Cloud';
+
+  @override
+  String get modelsCloudModeHint =>
+      'Every agent goes through your first-party account, using only the models assigned under the API keys.';
+
+  @override
+  String get modelsSwitch => 'Switch';
+
+  @override
+  String get modelsSwitchCloudTitle => 'Switch to cloud?';
+
+  @override
+  String get modelsSwitchCloudBody =>
+      'This affects every conversation on this computer: from the next turn, every agent goes through your first-party account, with only the models assigned to it.';
+
+  @override
+  String get modelsSwitchLocalTitle => 'Switch back to local?';
+
+  @override
+  String get modelsSwitchLocalBody =>
+      'This affects every conversation on this computer: from the next turn, each agent uses the account chosen for it under Local accounts.';
+
+  @override
+  String get modelsSwitchedCloud => 'Switched to cloud';
+
+  @override
+  String get modelsSwitchedLocal => 'Switched back to local';
+
+  @override
+  String get modelsSwitchRefused => 'The computer didn\'t switch';
+
+  @override
+  String get modelsLocal => 'Local accounts';
+
+  @override
+  String get modelsLocalHint =>
+      'Which account each agent uses in local mode. Injected only when the computer starts it: the CLIs\' own configuration files are never changed.';
+
+  @override
+  String get modelsLocalCloudNote =>
+      'Cloud mode is on: the agents go through the first-party account. These choices take effect when you switch back to local.';
+
+  @override
+  String get modelsLoading => 'Reading the computer\'s models and accounts…';
+
+  @override
+  String get modelsNoHarnesses => 'No agent on this computer takes an account.';
+
+  @override
+  String get modelsNotInstalled => 'Not installed';
+
+  @override
+  String get modelsNotDriven => 'Not supported yet';
+
+  @override
+  String get modelsChoiceCli => 'Follow the CLI\'s own configuration';
+
+  @override
+  String get modelsChoiceOfficial => 'Official subscription (forced)';
+
+  @override
+  String get modelsChoiceGone => 'A deleted account';
+
+  @override
+  String get modelsRouteCli =>
+      'Decided by the CLI\'s own configuration (for example the file cc-switch writes)';
+
+  @override
+  String get modelsRouteOfficial =>
+      'Forces Anthropic\'s official subscription login, over any third-party endpoint in settings.json';
+
+  @override
+  String get modelsRouteModelByCli => 'model chosen by the CLI';
+
+  @override
+  String get modelsNoKeyStored => 'no key stored';
+
+  @override
+  String modelsChoiceTitle(String agent) {
+    return 'Account for $agent';
+  }
+
+  @override
+  String modelsChoiceHint(String dialect) {
+    return 'The accounts that speak $dialect';
+  }
+
+  @override
+  String modelsChoiceNone(String dialect) {
+    return 'No $dialect account yet.';
+  }
+
+  @override
+  String get modelsAccounts => 'Accounts';
+
+  @override
+  String get modelsAccountsHint =>
+      'Add DeepSeek, Zhipu, Kimi, OpenRouter and more from a preset, or your own relay. Keys stay in the computer\'s keychain.';
+
+  @override
+  String get modelsAccountsHintReadOnly =>
+      'The provider accounts on the computer. Their keys stay in its keychain.';
+
+  @override
+  String get modelsNoAccounts =>
+      'No accounts yet. Add one: pick a preset and enter its key.';
+
+  @override
+  String get modelsAddAccount => 'Add account';
+
+  @override
+  String get modelsLegacy => 'Older endpoint';
+
+  @override
+  String get modelsLegacyHint => 'Pick its protocol to make it an account';
+
+  @override
+  String modelsPresetTag(String preset) {
+    return '$preset preset';
+  }
+
+  @override
+  String get modelsKeyStored => 'Key stored';
+
+  @override
+  String get modelsKeyMissing => 'No key';
+
+  @override
+  String modelsDialectModels(String dialect, int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count models',
+      one: '1 model',
+    );
+    return '$dialect ($_temp0)';
+  }
+
+  @override
+  String modelsDeleteAccountTitle(String name) {
+    return 'Delete “$name”?';
+  }
+
+  @override
+  String get modelsDeleteAccountBody =>
+      'Its key is deleted from the computer\'s keychain too. Agents using it go back to following the CLI\'s own configuration.';
+
+  @override
+  String modelsAccountDeleted(String name) {
+    return 'Deleted “$name”';
+  }
+
+  @override
+  String get modelsDeleteConflict =>
+      'This account was changed elsewhere and has been read again. Check it, then delete it if you still want to.';
+
+  @override
+  String get modelsCloud => 'Cloud API keys';
+
+  @override
+  String get modelsCloudHint =>
+      'Cloud mode runs on these: pick a key and assign its models to the agents. Managed with this phone\'s own sign-in.';
+
+  @override
+  String get keysLoading => 'Reading your keys…';
+
+  @override
+  String get keysEmpty => 'No keys yet. Create one to use cloud mode.';
+
+  @override
+  String get keyUnnamed => 'Unnamed';
+
+  @override
+  String get assignUnnamedKey => 'First-party key';
+
+  @override
+  String get keyUnlimited => 'Unlimited quota';
+
+  @override
+  String keyRemaining(String amount) {
+    return '$amount left';
+  }
+
+  @override
+  String keyGroupNamed(String group) {
+    return 'group $group';
+  }
+
+  @override
+  String get keyGroupDefault => 'The account\'s default';
+
+  @override
+  String get keyDisabled => 'Disabled';
+
+  @override
+  String get keyExpired => 'Expired';
+
+  @override
+  String get keyExhausted => 'Used up';
+
+  @override
+  String get keyAssign => 'Assign models';
+
+  @override
+  String get keyReveal => 'Show the whole key';
+
+  @override
+  String get keyCreate => 'New key';
+
+  @override
+  String get keyCreateTitle => 'New API key';
+
+  @override
+  String get keyCreateHint =>
+      'Made on your account with this phone\'s sign-in; the computer is not involved.';
+
+  @override
+  String get keyName => 'Name';
+
+  @override
+  String get keyNameHint => 'e.g. My laptop';
+
+  @override
+  String get keyNameRequired => 'Give the key a name';
+
+  @override
+  String keyNameTooLong(int letters, int chinese) {
+    return 'Too long: at most $letters letters, or $chinese Chinese characters';
+  }
+
+  @override
+  String get keyGroup => 'Group';
+
+  @override
+  String get keyGroupsLoading => 'Reading your groups…';
+
+  @override
+  String get keyUnlimitedHint =>
+      'Spends from the account\'s balance with no cap of its own';
+
+  @override
+  String get keyQuota => 'Quota (USD)';
+
+  @override
+  String get keyQuotaInvalid => 'Enter an amount above 0';
+
+  @override
+  String get keyExpiry => 'Expires';
+
+  @override
+  String get keyExpiryNever => 'Never';
+
+  @override
+  String keyExpiryDays(int days) {
+    String _temp0 = intl.Intl.pluralLogic(
+      days,
+      locale: localeName,
+      other: '$days days',
+      one: '1 day',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get keyCreatedTitle => 'Key created';
+
+  @override
+  String get keyShownOnce => 'This is the whole key, shown only this once.';
+
+  @override
+  String keyRevealTitle(String name) {
+    return 'Key “$name”';
+  }
+
+  @override
+  String get keyRevealHint =>
+      'Keep it safe: anyone who has it can spend your balance.';
+
+  @override
+  String get keyRevealReason => 'Unlock to show the whole key';
+
+  @override
+  String keyDeleteTitle(String name) {
+    return 'Delete the key “$name”?';
+  }
+
+  @override
+  String get keyDeleteBody =>
+      'Everything using it stops working, the cloud assignments made from it included. This can\'t be undone.';
+
+  @override
+  String get modelsAssigned => 'Assigned to agents';
+
+  @override
+  String get modelsAssignedHint => 'What cloud mode routes each agent through.';
+
+  @override
+  String get modelsNoModelsAssigned => 'No models specified';
+
+  @override
+  String get modelsUnassign => 'Unassign';
+
+  @override
+  String modelsUnassignTitle(String name) {
+    return 'Unassign “$name”?';
+  }
+
+  @override
+  String get modelsUnassignBody =>
+      'In cloud mode the agent can no longer use these models. The key itself is kept.';
+
+  @override
+  String modelsUnassigned(String name) {
+    return 'Unassigned “$name”';
+  }
+
+  @override
+  String get assignTitle => 'Assign models';
+
+  @override
+  String assignHint(String key) {
+    return 'Tick models and choose the agent they go to; cloud mode uses these. Each shows up as “agent · $key”.';
+  }
+
+  @override
+  String get assignTo => 'Assigning to';
+
+  @override
+  String get assignToHint =>
+      'Models ticked now go to this agent; pick another to give them to several.';
+
+  @override
+  String get assignToOnlyHint =>
+      'Models ticked now go to this agent, the only one on this computer.';
+
+  @override
+  String get assignAgentsLoading => 'Reading the computer\'s agents…';
+
+  @override
+  String get assignAgentsFailed => 'Couldn\'t read the computer\'s agents';
+
+  @override
+  String get assignNoAgents =>
+      'No agent on this computer is installed and supported.';
+
+  @override
+  String get assignSearch => 'Search models';
+
+  @override
+  String get assignLoading => 'Asking for this key\'s models…';
+
+  @override
+  String get assignNoModels => 'This key returned no models.';
+
+  @override
+  String assignGoesTo(String agents) {
+    return 'To $agents';
+  }
+
+  @override
+  String assignSummary(String agent, int count, int places) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count models',
+      one: '1 model',
+    );
+    String _temp1 = intl.Intl.pluralLogic(
+      places,
+      locale: localeName,
+      other: '$places assignments',
+      one: '1 assignment',
+    );
+    return '$agent: $_temp0 ticked · $_temp1 in all';
+  }
+
+  @override
+  String get assignConfirm => 'Confirm';
+
+  @override
+  String get assignNoneSelected => 'Tick at least one model';
+
+  @override
+  String assignTooMany(int limit) {
+    return 'An agent takes at most $limit models at a time';
+  }
+
+  @override
+  String assignPartial(String made, String error) {
+    return 'Only partly done. Made: $made. Then: $error';
+  }
+
+  @override
+  String assignDone(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'Set up $count agents',
+      one: 'Set up 1 agent',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get ctxTitle => 'Context and auto-compaction';
+
+  @override
+  String get ctxEntry => 'When each model compacts';
+
+  @override
+  String get ctxEntryHint =>
+      'Compact only once the context grows past a size you set';
+
+  @override
+  String ctxHint(String min, String max) {
+    return 'Give a model a size ($min–$max): its context is compacted only once it grows past it. A model without one is left to its agent. The window is what the model can hold.';
+  }
+
+  @override
+  String get ctxLoading => 'Reading the models…';
+
+  @override
+  String get ctxEmpty => 'No models to set yet.';
+
+  @override
+  String ctxCliGroup(String agent) {
+    return '$agent, built in';
+  }
+
+  @override
+  String ctxCloudGroup(String agent, String key) {
+    return '$agent, cloud key “$key”';
+  }
+
+  @override
+  String get ctxDefaultModel => 'Default model';
+
+  @override
+  String get ctxNoAgents => 'No agent can use it yet.';
+
+  @override
+  String ctxSupportLine(String agents, String support) {
+    return '$agents: $support';
+  }
+
+  @override
+  String get ctxSupportNative => 'compacts at the size';
+
+  @override
+  String get ctxSupportManaged =>
+      'checked between turns; past it, compacted before the next message';
+
+  @override
+  String get ctxSupportUnsupported => 'can\'t be set; it decides itself';
+
+  @override
+  String ctxWindow(String size, String source) {
+    return 'Window $size · $source';
+  }
+
+  @override
+  String get ctxSourceCustom => 'set by you';
+
+  @override
+  String get ctxSourceDiscovered => 'reported by the endpoint';
+
+  @override
+  String get ctxSourcePreset => 'account preset';
+
+  @override
+  String get ctxSourceKnown => 'model default';
+
+  @override
+  String get ctxSourceEstimate => 'estimate';
+
+  @override
+  String get ctxDefault => 'Default';
+
+  @override
+  String ctxSliderLabel(String model) {
+    return 'Compaction size for $model';
+  }
+
+  @override
+  String ctxCustom(String size) {
+    return 'Compacts once the context passes $size, not before.';
+  }
+
+  @override
+  String get ctxDefaultState => 'Default: the agent decides.';
+
+  @override
+  String ctxOverWindow(String window) {
+    return 'That\'s more than the $window window: the agent compacts on its own before then. If the window is wrong, correct it.';
+  }
+
+  @override
+  String get ctxEditWindow => 'Correct the window';
+
+  @override
+  String get ctxResetWindow => 'Reset the window';
+
+  @override
+  String get ctxReset => 'Reset to default';
+
+  @override
+  String get ctxWindowField => 'Window, like 200k, 1m or 200000';
+
+  @override
+  String get ctxWindowInvalid =>
+      'Write the window like 200k, 1m or 200000 (1K–100M)';
+
+  @override
+  String get editorAddTitle => 'Add account';
+
+  @override
+  String get editorEditTitle => 'Edit account';
+
+  @override
+  String get editorAdd => 'Add';
+
+  @override
+  String editorSaved(String name) {
+    return 'Saved “$name”';
+  }
+
+  @override
+  String editorAdded(String name) {
+    return 'Added “$name”: choose it for an agent under Local accounts';
+  }
+
+  @override
+  String get editorPreset => 'Preset';
+
+  @override
+  String get editorPresetHint =>
+      'A preset fills in each protocol\'s address and models. Model names change often: fetch them before saving.';
+
+  @override
+  String get editorPresetSearch => 'Search vendors';
+
+  @override
+  String get editorPresetsLoading => 'Reading the presets…';
+
+  @override
+  String get editorPresetCredit =>
+      'Some presets come from cc-switch, under the MIT License.';
+
+  @override
+  String get editorPresetLicense => 'License';
+
+  @override
+  String get editorPresetCustom => 'Custom';
+
+  @override
+  String get editorAccountSection => 'Account';
+
+  @override
+  String get editorName => 'Name';
+
+  @override
+  String get editorNameHint => 'e.g. DeepSeek (personal)';
+
+  @override
+  String get editorNameRequired => 'Give the account a name';
+
+  @override
+  String get editorNote => 'Note';
+
+  @override
+  String get editorNoteHint => 'Whose key, what for, how it\'s billed…';
+
+  @override
+  String get editorApiKey => 'API key';
+
+  @override
+  String get editorKeyShared =>
+      'One key for every protocol, kept in the computer\'s keychain and never shown again.';
+
+  @override
+  String get editorKeyKept =>
+      'One key for every protocol. A key is stored: leave this empty to keep it.';
+
+  @override
+  String get editorKeyWillClear => 'The stored key is cleared when you save.';
+
+  @override
+  String get editorClearKey => 'Clear the stored key';
+
+  @override
+  String get editorClearKeyHint => 'For an endpoint that needs none';
+
+  @override
+  String get editorProtocols => 'Protocol endpoints';
+
+  @override
+  String get editorProtocolsHint =>
+      'One account per vendor: an endpoint for each protocol it speaks, one key for all of them.';
+
+  @override
+  String get editorNoProtocol => 'Turn on at least one protocol';
+
+  @override
+  String editorDialectFor(String agents) {
+    return 'For $agents';
+  }
+
+  @override
+  String get editorBaseUrl => 'Base URL';
+
+  @override
+  String get editorUrlRequired => 'Enter the Base URL';
+
+  @override
+  String get editorUrlNotAddress =>
+      'Not a valid address, like https://api.example.com/v1';
+
+  @override
+  String get editorUrlNotHttp => 'Must start with http:// or https://';
+
+  @override
+  String get editorModels => 'Models';
+
+  @override
+  String get editorModelsHint => 'Fetch asks the endpoint itself for its list.';
+
+  @override
+  String get editorFetch => 'Fetch models';
+
+  @override
+  String get editorModelList => 'Model ids';
+
+  @override
+  String get editorModelsHelper => 'One per line, or separated by commas';
+
+  @override
+  String get editorCodexNeedsModel =>
+      'Codex needs a model on this endpoint: list one, or set the default model';
+
+  @override
+  String get editorFetching => 'Asking the endpoint for its models…';
+
+  @override
+  String get editorFetchFailed => 'Couldn\'t fetch the models';
+
+  @override
+  String editorFetched(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count models',
+      one: '1 model',
+    );
+    return 'Got $_temp0 and filled in the list.';
+  }
+
+  @override
+  String editorFetchedSome(int count, int kept) {
+    return 'Got $count models; filled in the first $kept, as many as a protocol keeps.';
+  }
+
+  @override
+  String get editorFetchNeedsUrl => 'Enter the Base URL first';
+
+  @override
+  String get editorFetchNoQuery =>
+      'The address can\'t have ? or # in it: the model list\'s path goes after it';
+
+  @override
+  String editorFetchRejected(int status) {
+    return 'The key was rejected ($status): check this endpoint\'s key';
+  }
+
+  @override
+  String editorFetchHttp(int status) {
+    return 'The endpoint answered HTTP $status';
+  }
+
+  @override
+  String get editorFetchTimeout =>
+      'The endpoint didn\'t answer within 20 seconds';
+
+  @override
+  String get editorFetchNetwork => 'Couldn\'t reach this address';
+
+  @override
+  String get editorFetchNotJson => 'The endpoint\'s answer isn\'t JSON';
+
+  @override
+  String get editorFetchEmpty => 'The endpoint listed no models';
+
+  @override
+  String get editorFetchTooLarge =>
+      'The endpoint\'s answer is too large (over 8 MiB)';
+
+  @override
+  String get editorModelMap => 'Model mapping';
+
+  @override
+  String get editorModelMapHint =>
+      'The model the agent asks for unless told otherwise.';
+
+  @override
+  String get editorModelMapHintAnthropic =>
+      'Which model each of Claude Code\'s slots asks for; an empty slot uses the main model.';
+
+  @override
+  String get editorSlotMain => 'Main model';
+
+  @override
+  String get editorSlotDefault => 'Default model';
+
+  @override
+  String get editorSlotHaiku => 'Haiku (background)';
+
+  @override
+  String get editorSlotSubagent => 'Subagent';
+
+  @override
+  String get editorSameAsMain => 'Same as main';
+
+  @override
+  String get editorPickModel => 'Pick from the list';
+
+  @override
+  String get editorExtraEnv => 'Extra environment variables';
+
+  @override
+  String get editorExtraEnvHint =>
+      'Set for Claude Code only. The endpoint and key are the route\'s own and can\'t be overridden here.';
+
+  @override
+  String get editorExtraEnvField => 'Variables';
+
+  @override
+  String get editorExtraEnvFormat => 'KEY=VALUE, one per line';
+
+  @override
+  String editorEnvLine(String line) {
+    return 'Not KEY=VALUE: $line';
+  }
+
+  @override
+  String editorEnvBadName(String name) {
+    return '$name isn\'t a variable name: capital letters, digits and underscores, starting with a letter';
+  }
+
+  @override
+  String editorEnvReserved(String name) {
+    return '$name is set by the route itself and can\'t be overridden here';
+  }
+
+  @override
+  String get editorAdopt => 'Take in an older endpoint';
+
+  @override
+  String editorAdopted(String name) {
+    return 'Takes in the older endpoint “$name”';
+  }
+
+  @override
+  String get editorAdoptUndo => 'Don\'t take it in';
+
+  @override
+  String get editorAdoptHint =>
+      'Pick an older endpoint and the protocol it speaks: it becomes this account\'s endpoint for that protocol, its key with it.';
+
+  @override
+  String get editorAdoptProtocol => 'The protocol it speaks';
+
+  @override
+  String get editorAdoptAction => 'Take it in';
+
+  @override
+  String get editorLegacyTitle => 'An older endpoint';
+
+  @override
+  String get editorLegacyBody =>
+      'It was made before accounts and names no protocol. Turn on the one it speaks: saving makes it an account.';
+
+  @override
+  String get editorConflictTitle => 'Changed elsewhere';
+
+  @override
+  String get editorConflictBody =>
+      'The computer or another phone changed this account while you were editing. Reloading discards your changes here.';
+
+  @override
+  String get editorReload => 'Reload';
+
+  @override
+  String editorReloadFailed(String error) {
+    return 'Couldn\'t read it again: $error';
+  }
+
+  @override
+  String get editorDeletedElsewhere => 'This account was deleted elsewhere.';
+
+  @override
+  String get editorKeyRequired => 'New server address: enter the API key again';
+
+  @override
+  String get editorKeyRequiredBody =>
+      'The stored key can\'t go to a new address. Enter the key again, or clear the stored one, then save.';
+
+  @override
+  String editorFixFields(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count fields need fixing',
+      one: '1 field needs fixing',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get editorStatusConflict => 'Changed elsewhere: reload it at the top';
+
+  @override
+  String get editorStatusRefused => 'Not saved: the reason is at the top';
+
+  @override
+  String editorTooLong(int limit) {
+    return 'At most $limit characters';
+  }
+
+  @override
+  String editorTooMany(int limit) {
+    return 'At most $limit';
+  }
+
+  @override
+  String editorTooManyModels(int limit) {
+    return 'At most $limit models';
+  }
+
+  @override
+  String editorTooManyEnv(int limit) {
+    return 'At most $limit variables';
+  }
+
+  @override
+  String get editorEmpty => 'Can\'t be blank';
+
+  @override
+  String get editorKeyInvalid => 'Printable ASCII only, no spaces';
+
+  @override
+  String get editorUrlInvalid => 'No spaces or control characters';
+
+  @override
+  String get editorControlChars => 'No control characters';
+
+  @override
+  String editorProblemIn(String item, String problem) {
+    return '$item: $problem';
+  }
+
+  @override
+  String get editorDiscardTitle => 'Discard your changes?';
+
+  @override
+  String get editorDiscardBody => 'What you changed here isn\'t saved.';
+
+  @override
+  String get editorUnknownProtocol =>
+      'This account speaks a protocol this version of the app doesn\'t know: edit it on the computer, or update the app.';
+
+  @override
+  String editorProtocolTwice(String protocol) {
+    return '$protocol is there twice';
+  }
+
+  @override
+  String get errProviderUnsupported =>
+      'This computer can\'t take a model on a chosen account. Pick the model again.';
+
+  @override
+  String get backendKeyNotLocated =>
+      'The key was created, but isn\'t in the list that came after. Check your keys before creating another.';
+
+  @override
+  String get backendNoKey => 'The server returned no key';
 }

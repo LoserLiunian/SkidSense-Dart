@@ -94,21 +94,10 @@ abstract final class AppTheme {
         shape: rounded(expressive ? shapes.medium : shapes.small),
         labelStyle: text.labelLarge,
       ),
-      inputDecorationTheme: InputDecorationTheme(
+      inputDecorationTheme: expressive ? _expressiveFields(colors, shapes) : InputDecorationTheme(
         filled: true,
         fillColor: colors.surfaceContainerHighest,
-        border: expressive
-            ? OutlineInputBorder(borderRadius: BorderRadius.circular(shapes.large), borderSide: BorderSide.none)
-            : const UnderlineInputBorder(),
-        enabledBorder: expressive
-            ? OutlineInputBorder(borderRadius: BorderRadius.circular(shapes.large), borderSide: BorderSide.none)
-            : null,
-        focusedBorder: expressive
-            ? OutlineInputBorder(
-                borderRadius: BorderRadius.circular(shapes.large),
-                borderSide: BorderSide(color: colors.primary, width: 2),
-              )
-            : null,
+        border: const UnderlineInputBorder(),
       ),
       navigationBarTheme: NavigationBarThemeData(
         backgroundColor: expressive ? colors.surfaceContainer : colors.surfaceContainer,
@@ -134,6 +123,25 @@ abstract final class AppTheme {
           borderRadius: BorderRadius.circular(expressive ? shapes.small : shapes.extraSmall),
         ),
       ),
+    );
+  }
+
+  /// M3 Expressive's filled field: a rounded box with no line until it is
+  /// focused or wrong, when one runs along its foot inside the corners. An
+  /// underline border in every state, so the floating label stays inside the
+  /// box (as M3's) — an outline one would set it on an edge that is not drawn.
+  static InputDecorationTheme _expressiveFields(ColorScheme colors, AppShapes shapes) {
+    final radius = BorderRadius.circular(shapes.large);
+    UnderlineInputBorder line([BorderSide side = BorderSide.none]) => UnderlineInputBorder(borderRadius: radius, borderSide: side);
+    return InputDecorationTheme(
+      filled: true,
+      fillColor: colors.surfaceContainerHighest,
+      border: line(),
+      enabledBorder: line(),
+      disabledBorder: line(),
+      focusedBorder: line(BorderSide(color: colors.primary, width: 2)),
+      errorBorder: line(BorderSide(color: colors.error)),
+      focusedErrorBorder: line(BorderSide(color: colors.error, width: 2)),
     );
   }
 

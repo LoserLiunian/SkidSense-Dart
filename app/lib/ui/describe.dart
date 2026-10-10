@@ -97,6 +97,10 @@ extension Describe on L10n {
         return errUploadTooLarge;
       case 'uploads-too-large':
         return errUploadsTooLarge;
+      // A turn pinned to an account's model, for a computer from before
+      // `providerId` (spec §6.1): nothing was sent.
+      case 'provider-unsupported':
+        return errProviderUnsupported;
       default:
         // A crypto code attributed to a route (a failed confirmation there).
         final prefix = at == null ? '' : '${route(at)}: ';
@@ -185,6 +189,8 @@ extension Describe on L10n {
         'no-credentials' => backendNoCredentials,
         'verification-incomplete' => backendVerificationIncomplete,
         'verify-failed' => backendVerifyFailed,
+        'key-not-located' => backendKeyNotLocated,
+        'no-key' => backendNoKey,
         _ => errUnknown(error.code),
       };
 
@@ -262,6 +268,7 @@ extension Describe on L10n {
         Scopes.git => scopeGit,
         Scopes.gitWrite => scopeGitWrite,
         Scopes.terminal => scopeTerminal,
+        Scopes.settings => scopeSettings,
         _ => scope,
       };
 
@@ -295,6 +302,14 @@ extension Describe on L10n {
     return exit.code >= 0 ? terminalExitCode(exit.code) : terminalEnded;
   }
 
+  /// What a group multiplies its calls' price by: `×1.5`, or — for `auto`,
+  /// which picks a group per call — no one figure.
+  String groupRatio(TokenGroup group) {
+    final ratio = group.ratio;
+    if (ratio == null) return groupRatioAuto;
+    return '×${ratio == ratio.roundToDouble() ? ratio.round() : ratio}';
+  }
+
   String historyProblem(HistoryEntry entry) => switch (entry.problem) {
         HistoryProblem.noKey => historyNoKey(entry.epoch),
         HistoryProblem.download => historyDownload(error(entry.error)),
@@ -317,6 +332,20 @@ String formatBytes(int bytes) {
   if (bytes >= 1024 * 1024) return '${(bytes / (1024 * 1024)).toStringAsFixed(bytes >= 10 * 1024 * 1024 ? 0 : 1)} MB';
   if (bytes >= 1024) return '${(bytes / 1024).round()} KB';
   return '$bytes B';
+}
+
+/// Dollars, as a balance or a key's quota is shown: cents always, thousands
+/// grouped, and an amount under a cent — something, not nothing — to four
+/// places, as the desktop's `formatUsd` does.
+String usdLabel(double usd) {
+  if (!usd.isFinite) return '—';
+  final sign = usd < 0 ? '-' : '';
+  final amount = usd.abs();
+  if (amount > 0 && amount < 0.01) return '$sign\$${amount.toStringAsFixed(4)}';
+  final fixed = amount.toStringAsFixed(2);
+  final point = fixed.indexOf('.');
+  final whole = fixed.substring(0, point).replaceAllMapped(RegExp(r'\B(?=(\d{3})+$)'), (_) => ',');
+  return '$sign\$$whole${fixed.substring(point)}';
 }
 
 String formatTokens(int value) {

@@ -17,11 +17,13 @@ import '../transport/enrollment.dart';
 import '../transport/errors.dart';
 import '../transport/inner.dart';
 import '../transport/rc_client.dart';
+import '../transport/rc_connection.dart';
 import '../util/json.dart';
 import '../util/mutex.dart';
 import '../util/state_value.dart';
 import 'app_state.dart';
 import 'history.dart';
+import 'host_config.dart';
 import 'live_turn.dart';
 import 'search_fold.dart';
 import 'terminal.dart';
@@ -45,7 +47,9 @@ final class PromptAccepted extends PromptOutcome {
 
 /// The desktop answered, on the same connection, that it did not take the
 /// turn: the attachments are back in the composer for a retry. [reason] is a
-/// [RemoteCallError] or the response's own `error` sentence.
+/// [RemoteCallError] or the response's own `error` sentence — or, sent
+/// nowhere, `RcException('provider-unsupported')`: the host the turn would go
+/// to cannot take the endpoint picked ([AppController.prompt]).
 final class PromptRefused extends PromptOutcome {
   const PromptRefused(this.reason);
   final Object? reason;
@@ -169,6 +173,16 @@ class AppController {
 
   void _bumpLive() => liveRevision.value = liveRevision.value + 1;
 
+  /// The desktop's model and account settings, on the live connection.
+  late final HostConfigController config = HostConfigController(_request);
+
+  /// Bumped when the agents' model catalogs (`models.list`) may have changed
+  /// — the routing mode or the accounts did (spec §6.4), or a reconnect may
+  /// have missed saying so: a composer holding one reads it again.
+  final StateValue<int> modelsRevision = StateValue<int>(0);
+
+  void _bumpModels() => modelsRevision.value = modelsRevision.value + 1;
+
   RcClient? _client;
   final List<StreamSubscription<Object?>> _clientSubscriptions = [];
 
@@ -275,6 +289,7 @@ class AppController {
           welcome: null,
           sessions: const [],
           paired: const [],
+          serverScopes: null,
           notice: const AppNotice(NoticeKind.sessionExpired),
         ));
   }
@@ -332,6 +347,7 @@ class AppController {
           welcome: null,
           sessions: const [],
           devices: const [],
+          serverScopes: null,
         ));
   }
 
@@ -398,12 +414,26 @@ class AppController {
   Future<void> loadDevices() async {
     final host = _state.value.activeHost;
     if (host == null) return;
+    final scopes = _state.value.serverScopes == null ? loadServerScopes() : null;
     try {
       final devices = await backend.devices(host.hostId);
       _update((s) => s.copyWith(devices: devices));
     } catch (error) {
       _update((s) => s.copyWith(notice: AppNotice(NoticeKind.error, error: error)));
     }
+    await scopes;
+  }
+
+  /// Which permissions the backend knows (spec §9): the devices panel offers
+  /// no other, and the models tab sends nobody to turn on one the computer
+  /// cannot have. A backend that lists none knows the eight from before
+  /// `settings`; one that could not be read is left unread
+  /// ([AppState.serverScopes] null), to be asked again.
+  Future<void> loadServerScopes() async {
+    try {
+      final scopes = (await backend.companionConfig()).scopes;
+      _update((s) => s.copyWith(serverScopes: scopes ?? Scopes.legacy));
+    } catch (_) {}
   }
 
   Future<void> renameDevice(String deviceId, String name) async {
@@ -411,8 +441,13 @@ class AppController {
     await loadDevices();
   }
 
+  /// Set a device's grant on the backend. A scope the backend does not know
+  /// is left out: it would refuse the whole request (spec §8.5). One the
+  /// device holds already it knows, having granted it.
   Future<void> setDeviceScopes(String deviceId, List<String> scopes) async {
-    await backend.updateDevice(deviceId, scopes: scopes);
+    final held = _state.value.devices.where((device) => device.deviceId == deviceId).firstOrNull?.scopes ?? const [];
+    final known = {...Scopes.known(_state.value.serverScopes), ...held};
+    await backend.updateDevice(deviceId, scopes: [for (final scope in scopes) if (known.contains(scope)) scope]);
     await loadDevices();
   }
 
@@ -669,6 +704,7 @@ class AppController {
     _terminalSink = null;
     _terminalBuffer.clear();
     _openSessionKey = null;
+    config.reset();
     final rc = _client;
     if (rc == null) return;
     _client = null;
@@ -704,12 +740,16 @@ class AppController {
       // Whatever was uploaded on the connection that just died is gone from
       // the desktop's stash too.
       _uploads.dropStaleConnections();
+      config.connected(connection.welcome.device.scopes);
       if (_state.value.workspaces.isEmpty) unawaited(loadWorkspaces());
       unawaited(loadSessions());
       // A reconnect: whatever the open turn did while the line was down was
       // published to nobody — and a turn waiting on an answer publishes
       // none, so its question would never appear. Re-read it now.
-      if (_connectedBefore) _resyncAfterReconnect();
+      if (_connectedBefore) {
+        _resyncAfterReconnect();
+        _bumpModels();
+      }
       _connectedBefore = true;
     } else {
       _endInterruptedSearch();
@@ -751,6 +791,11 @@ class AppController {
         _terminalSink?.onExit(exit);
       case Events.searchProgress:
         _onSearchProgress(payload);
+      case Events.modeChanged || Events.accountsChanged:
+        config.onEvent(kind, payload);
+        _bumpModels();
+      case Events.modelsContextChanged:
+        config.onEvent(kind, payload);
       default:
         // agents.changed, fs.changed, git.changed, background.jobs: the UI
         // reads what it needs on demand.
@@ -1000,6 +1045,14 @@ class AppController {
     return rc.call(method, params, timeout);
   }
 
+  /// The live connection, waited for as [_request] does: for a request whose
+  /// parameters depend on what that connection's host can do.
+  Future<RcConnection> _connection() {
+    final rc = _client;
+    if (rc == null) return Future.error(const RcException('offline'));
+    return rc.connection();
+  }
+
   Future<Map<String, Object?>?> _callObject(String method, Map<String, Object?> params) async {
     final answer = await _request(method, params);
     return answer is Map<String, Object?> ? answer : null;
@@ -1120,23 +1173,50 @@ class AppController {
   /// that it did not take the turn. Anything else leaves it uncertain whether
   /// the turn started, and the ids are dead with the connection regardless:
   /// they are dropped and the user is told to check the transcript (S28).
-  Future<PromptOutcome> prompt(String key, String text, {String? model, String? effort, String? approvalMode}) async {
+  ///
+  /// [providerId] — the picked model's `ModelOption.providerId` — goes only
+  /// to a host that says it checks it (`Features.promptProviderId`): one
+  /// before that ignores it, and the turn would go its default way unasked.
+  /// The composer offers such a host no other endpoint's model (spec §6.1).
+  /// What decides is the connection the turn goes out on, not the one the
+  /// model was picked on: a reconnect between the two can land on a host
+  /// without it, and then nothing is sent — [PromptRefused] with
+  /// `RcException('provider-unsupported')`: pick the model again.
+  Future<PromptOutcome> prompt(
+    String key,
+    String text, {
+    String? model,
+    String? effort,
+    String? approvalMode,
+    String? providerId,
+  }) async {
     final List<Upload> taken;
     try {
       taken = _uploads.take(key);
     } on RcException catch (error) {
       return PromptBlocked(error);
     }
+    final pinned = providerId != null && providerId.isNotEmpty;
     final body = <String, Object?>{
       'sessionKey': key,
       'prompt': text,
       if (model != null && model.isNotEmpty) 'model': model,
       if (effort != null && effort.isNotEmpty) 'effort': effort,
       if (approvalMode != null && approvalMode.isNotEmpty) 'approvalMode': approvalMode,
+      if (pinned) 'providerId': providerId,
       if (taken.isNotEmpty) 'uploads': [for (final upload in taken) upload.id],
     };
     try {
-      final answer = await _request('turn.prompt', body);
+      final connection = await _connection();
+      if (pinned && !connection.welcome.supports(Features.promptProviderId)) {
+        // Nothing went out. What was staged on a connection gone is dead
+        // with it (S28); the rest is back for the retry.
+        _uploads
+          ..restore(taken)
+          ..dropStaleConnections();
+        return const PromptRefused(RcException('provider-unsupported'));
+      }
+      final answer = await connection.request('turn.prompt', body);
       if (answer is! Map<String, Object?>) return PromptUncertain(null, droppedAttachments: taken.isNotEmpty);
       final response = PromptResponse.fromJson(answer);
       if (!response.ok) {

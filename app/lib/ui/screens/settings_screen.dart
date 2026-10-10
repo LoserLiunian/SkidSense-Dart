@@ -14,6 +14,7 @@ import '../kit/feedback.dart';
 import '../kit/scaffold.dart';
 import '../material.dart';
 import '../theme/tokens.dart';
+import 'account_screen.dart';
 import 'gallery_screen.dart';
 
 /// Account, appearance (the design style lives here), security, this
@@ -32,15 +33,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
     if (context.app.state.activeHost != null) unawaited(context.app.loadDevices());
   }
 
-  Future<void> _signOut() async {
-    final l = context.l10n;
-    final ok = await confirm(context, title: l.signOutTitle, body: l.signOutBody, action: l.signOut);
-    if (!ok || !mounted) return;
-    final navigator = Navigator.of(context);
-    await context.app.logout();
-    navigator.popUntil((route) => route.isFirst);
-  }
-
   @override
   Widget build(BuildContext context) {
     final l = context.l10n;
@@ -50,6 +42,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
       valueListenable: services.appearance,
       builder: (context, appearance, _) => Watch(app.states, builder: (context, state) {
         void update(Appearance next) => unawaited(services.appearance.update(next));
+        // What the backend does not know it never grants (spec §9).
+        final known = Scopes.known(state.serverScopes);
         return AppPage(
           title: l.settingsTitle,
           slivers: [
@@ -165,16 +159,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
             SliverToBoxAdapter(child: SectionHeader(l.account)),
             SliverToBoxAdapter(
               child: GroupedList(children: [
+                // The balance, the groups and signing out are a page of their own.
                 ListTile(
                   leading: const Icon(Icons.account_circle_outlined),
                   title: Text(state.user ?? l.none),
                   subtitle: Text(state.baseUrl),
-                ),
-                ListTile(
-                  leading: Icon(Icons.logout_rounded, color: context.colors.error),
-                  title: Text(l.signOut, style: TextStyle(color: context.colors.error)),
-                  subtitle: Text(l.reloginNote),
-                  onTap: _signOut,
+                  trailing: const Icon(Icons.chevron_right_rounded),
+                  onTap: () => Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => const AccountScreen())),
                 ),
               ]),
             ),
@@ -216,16 +207,26 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       const SizedBox(height: Gap.sm),
                       Wrap(spacing: Gap.xs, runSpacing: Gap.xs, children: [
                         for (final scope in Scopes.all)
-                          FilterChip(
-                            label: Text(l.scope(scope)),
-                            selected: state.canScope(scope),
-                            onSelected: null,
-                          ),
+                          if (known.contains(scope) || state.canScope(scope))
+                            FilterChip(
+                              label: Text(l.scope(scope)),
+                              selected: state.canScope(scope),
+                              onSelected: null,
+                            ),
                       ]),
                       if (!state.canScope(Scopes.terminal))
                         Padding(
                           padding: const EdgeInsets.only(top: Gap.xs),
                           child: Text(l.terminalScopeNote, style: context.text.bodySmall?.copyWith(color: context.colors.onSurfaceVariant)),
+                        ),
+                      // As much as the terminal, and said as plainly (spec §8.5).
+                      if (state.canScope(Scopes.settings) || known.contains(Scopes.settings))
+                        Padding(
+                          padding: const EdgeInsets.only(top: Gap.xs),
+                          child: Text(
+                            state.canScope(Scopes.settings) ? l.settingsScopeWarning : l.settingsScopeNote,
+                            style: context.text.bodySmall?.copyWith(color: context.colors.onSurfaceVariant),
+                          ),
                         ),
                     ]),
                   ),
@@ -487,7 +488,12 @@ class _ScopesSheetState extends State<_ScopesSheet> {
       _error = null;
     });
     try {
-      await context.app.setDeviceScopes(widget.device.deviceId, [for (final scope in Scopes.all) if (_scopes.contains(scope)) scope]);
+      // The device's own scopes with the switches applied: one this build has
+      // no switch for stays the device's (spec §8.5).
+      await context.app.setDeviceScopes(widget.device.deviceId, [
+        for (final scope in Scopes.all) if (_scopes.contains(scope)) scope,
+        for (final scope in widget.device.scopes) if (!Scopes.isScope(scope)) scope,
+      ]);
       if (mounted) Navigator.of(context).pop();
     } catch (error) {
       if (mounted) setState(() => _error = error);
@@ -499,16 +505,24 @@ class _ScopesSheetState extends State<_ScopesSheet> {
   @override
   Widget build(BuildContext context) {
     final l = context.l10n;
+    final known = Scopes.known(context.app.state.serverScopes);
     return SingleChildScrollView(
       padding: const EdgeInsets.only(bottom: Gap.xl),
       child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
         SheetHeader(l.permissions, subtitle: l.serverScopesNote),
+        // A switch for what the backend knows, and for what the device holds.
         for (final scope in Scopes.all)
-          CheckboxListTile(
-            title: Text(l.scope(scope)),
-            value: _scopes.contains(scope),
-            onChanged: (value) => setState(() => value == true ? _scopes.add(scope) : _scopes.remove(scope)),
-          ),
+          if (known.contains(scope) || widget.device.scopes.contains(scope))
+            CheckboxListTile(
+              title: Text(l.scope(scope)),
+              subtitle: scope == Scopes.settings ? Text(l.settingsScopeLocked) : null,
+              value: _scopes.contains(scope),
+              // Opened on the computer alone (spec §8.5): here it can only be
+              // closed — the server half widened would only mislead.
+              onChanged: scope == Scopes.settings && !widget.device.scopes.contains(scope)
+                  ? null
+                  : (value) => setState(() => value == true ? _scopes.add(scope) : _scopes.remove(scope)),
+            ),
         if (_error != null) Padding(padding: const EdgeInsets.all(Gap.lg), child: InlineBanner(message: l.error(_error))),
         Padding(
           padding: const EdgeInsets.fromLTRB(Gap.xl, Gap.md, Gap.xl, 0),

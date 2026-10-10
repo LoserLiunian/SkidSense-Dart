@@ -50,9 +50,11 @@ class _SessionsPaneState extends State<SessionsPane> {
       setState(() => _selected = row.key);
       return;
     }
-    Navigator.of(context).push(MaterialPageRoute<void>(
-      builder: (_) => SessionScreen(sessionKey: row.key, onOpenFiles: widget.onOpenFiles, onOpenGit: widget.onOpenGit),
-    ));
+    // Taken now: this pane may be gone (another tab) when the route rebuilds.
+    final page = context.keepShell(
+      SessionScreen(sessionKey: row.key, onOpenFiles: widget.onOpenFiles, onOpenGit: widget.onOpenGit),
+    );
+    Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => page));
   }
 
   Future<void> _newSession() async {

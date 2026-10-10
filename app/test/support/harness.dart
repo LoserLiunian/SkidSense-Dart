@@ -56,10 +56,84 @@ class FakeBackend {
   final List<HostRow> hosts = [];
   final List<Map<String, Object?>> devices = [];
 
+  /// The scopes `/config` lists; null leaves them out, as a backend from
+  /// before the list.
+  List<String>? scopes;
+
+  /// The `scopes` of every device `PATCH`, in order.
+  final List<Object?> scopePatches = [];
+
+  /// The account's API keys (`/api/token/`), newest first, as new-api lists
+  /// them: the key masked.
+  final List<Map<String, Object?>> tokens = [
+    {'id': 12, 'name': 'Laptop', 'key': 'Xq7f**********u2Lw', 'status': 1, 'unlimited_quota': true, 'remain_quota': 0, 'used_quota': 1250000, 'expired_time': -1, 'group': ''},
+    {'id': 9, 'name': 'CI runner', 'key': 'b81K**********pQ0e', 'status': 1, 'unlimited_quota': false, 'remain_quota': 2500000, 'used_quota': 400000, 'expired_time': -1, 'group': 'vip'},
+    {'id': 4, 'name': 'Old test', 'key': 'Mm3c**********Zt9a', 'status': 2, 'unlimited_quota': false, 'remain_quota': 0, 'used_quota': 500000, 'expired_time': -1, 'group': ''},
+  ];
+
+  /// The groups a key may go in (`/api/user/self/groups`).
+  Map<String, Object?> tokenGroups = {
+    'default': {'desc': 'Default', 'ratio': 1},
+    'vip': {'desc': 'Faster, pricier', 'ratio': 1.5},
+  };
+
+  /// Who `/api/user/self` says is signed in, the quotas in new-api's units
+  /// (500000 to the dollar): $1,234.56 left, $86.21 spent.
+  Map<String, Object?> self = {
+    'id': 7,
+    'username': 'liunian',
+    'display_name': 'liunian',
+    'group': 'default',
+    'aff_code': 'Xy7k',
+    'quota': 617280000,
+    'used_quota': 43105000,
+  };
+
+  /// How many more requests to each path to refuse, in the server's own words.
+  final Map<String, int> failures = {};
+
+  /// No answer to anything, as with no network.
+  bool offline = false;
+
+  /// What each key creation sent.
+  final List<Map<String, Object?>> createdTokens = [];
+
+  /// The whole key `POST /api/token/:id/key` answers with (new-api keeps it
+  /// without `sk-`): 48 characters, as new-api makes them — 51 with `sk-`.
+  static const revealedKey = 'Xq7fJd02nRkVb5Tq9PwYc3LmHa8Ze1UsGs4Nc6Kp0Rt7u2Lw';
+
   static String ok(Object? data) => jsonEncode({'success': true, 'message': '', 'data': data});
 
   http.Client client() => MockClient((request) async {
+        if (offline) throw http.ClientException('no network', request.url);
         final path = request.url.path;
+        if ((failures[path] ?? 0) > 0) {
+          failures[path] = failures[path]! - 1;
+          return http.Response(jsonEncode({'success': false, 'message': 'Database is busy', 'data': null}), 200,
+              headers: {'content-type': 'application/json; charset=utf-8'});
+        }
+        final token = RegExp(r'^/api/token/(\d+)(/key)?$').firstMatch(path);
+        if (request.method == 'POST' && path == '/api/token/') {
+          final sent = jsonDecode(request.body) as Map<String, Object?>;
+          createdTokens.add(sent);
+          final id = tokens.fold<int>(0, (top, row) => (row['id']! as int) > top ? row['id']! as int : top) + 1;
+          tokens.insert(0, {...sent, 'id': id, 'key': 'Nw4p**********k8Rd', 'status': 1, 'used_quota': 0});
+          return http.Response(ok(null), 200, headers: {'content-type': 'application/json; charset=utf-8'});
+        }
+        if (request.method == 'POST' && token != null && token.group(2) != null) {
+          return http.Response(ok({'key': revealedKey}), 200, headers: {'content-type': 'application/json; charset=utf-8'});
+        }
+        if (request.method == 'DELETE' && token != null) {
+          tokens.removeWhere((row) => '${row['id']}' == token.group(1));
+          return http.Response(ok(null), 200, headers: {'content-type': 'application/json; charset=utf-8'});
+        }
+        if (request.method == 'PATCH' && path.startsWith('/api/companion/devices/')) {
+          final sent = (jsonDecode(request.body) as Map<String, Object?>)['scopes'];
+          scopePatches.add(sent);
+          final row = devices.firstWhere((device) => path.endsWith('/${device['device_id']}'));
+          if (sent != null) row['scopes'] = sent;
+          return http.Response(ok(row), 200, headers: {'content-type': 'application/json; charset=utf-8'});
+        }
         final body = switch (path) {
           '/api/status' => ok({'turnstile_check': false, 'geetest_check': false, 'system_name': 'Surise'}),
           '/api/companion/hosts' => ok([
@@ -74,8 +148,11 @@ class FakeBackend {
                   'last_seen_at': host.lastSeenAt,
                 },
             ]),
-          '/api/companion/config' => ok({'enabled': true}),
+          '/api/companion/config' => ok({'enabled': true, 'scopes': ?scopes}),
           '/api/companion/grant' => ok({'grant': 'grant-token', 'expires_at': DateTime.now().millisecondsSinceEpoch ~/ 1000 + 3600}),
+          '/api/token/' => ok({'items': tokens, 'total': tokens.length}),
+          '/api/user/self' => ok(self),
+          '/api/user/self/groups' => ok(tokenGroups),
           _ when path.endsWith('/devices') => ok(devices),
           _ => jsonEncode({'success': false, 'message': 'not found', 'data': null}),
         };
@@ -89,9 +166,24 @@ class _NoCarriers implements CarrierFactory {
       throw const CarrierUnavailable('test');
 }
 
+/// The phone's unlock, answered [ok] without asking anyone; [reasons] says
+/// what each ask was for.
+class TestUnlock extends Biometrics {
+  TestUnlock(this.ok);
+
+  final bool ok;
+  final List<String> reasons = [];
+
+  @override
+  Future<bool> authenticate(String reason) async {
+    reasons.add(reason);
+    return ok;
+  }
+}
+
 /// The real controller over [FakeBackend] and in-memory stores.
 class TestServices {
-  TestServices({Appearance appearance = const Appearance(), CarrierFactory? carriers})
+  TestServices({Appearance appearance = const Appearance(), CarrierFactory? carriers, Biometrics? biometrics})
       : appearance = AppearanceController(null)..value = appearance {
     controller = AppController(
       backend: BackendClient(http: backend.client(), secrets: secrets, defaultBaseUrl: testBase),
@@ -104,7 +196,7 @@ class TestServices {
     services = AppServices(
       controller: controller,
       appearance: this.appearance,
-      biometrics: Biometrics(),
+      biometrics: biometrics ?? Biometrics(),
       links: DeepLinks(),
       device: const DeviceFacts(platform: 'android', model: 'Pixel 9 Pro XL', appVersion: '1.0.0'),
     );

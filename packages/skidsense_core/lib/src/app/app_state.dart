@@ -155,6 +155,7 @@ class AppState {
     this.sessionsError,
     this.search = '',
     this.devices = const [],
+    this.serverScopes,
     this.biometricLock = false,
     this.locked = false,
     this.notice,
@@ -183,6 +184,13 @@ class AppState {
 
   /// The devices the active host has, from the backend.
   final List<DeviceRow> devices;
+
+  /// The scopes the backend knows, from `/config` — [Scopes.legacy] from one
+  /// that lists none. Null until read, and after a read that failed: nothing
+  /// is known of the backend then. `Scopes.known` reads that as the eight
+  /// from before `settings`, so a permission it may not know is never
+  /// offered; nor is the backend said to lack one.
+  final List<String>? serverScopes;
   final bool biometricLock;
   final bool locked;
   final AppNotice? notice;
@@ -237,6 +245,7 @@ class AppState {
     Object? sessionsError = _unset,
     String? search,
     List<DeviceRow>? devices,
+    Object? serverScopes = _unset,
     bool? biometricLock,
     bool? locked,
     Object? notice = _unset,
@@ -261,6 +270,7 @@ class AppState {
         sessionsError: identical(sessionsError, _unset) ? this.sessionsError : sessionsError,
         search: search ?? this.search,
         devices: devices ?? this.devices,
+        serverScopes: identical(serverScopes, _unset) ? this.serverScopes : serverScopes as List<String>?,
         biometricLock: biometricLock ?? this.biometricLock,
         locked: locked ?? this.locked,
         notice: identical(notice, _unset) ? this.notice : notice as AppNotice?,

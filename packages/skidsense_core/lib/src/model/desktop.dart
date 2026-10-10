@@ -135,32 +135,49 @@ class AgentStatus {
   final bool? tui;
 }
 
+/// `ModelOption` — `src/agents/models.ts`.
 class ModelOption {
-  const ModelOption({this.id = '', this.label = '', this.description, this.live = false});
+  const ModelOption({this.id = '', this.label = '', this.description, this.live = false, this.providerId, this.group});
 
   factory ModelOption.fromJson(Map<String, Object?> j) => ModelOption(
         id: j.str('id') ?? '',
         label: j.str('label') ?? '',
         description: j.str('description'),
         live: j.boolean('live') ?? false,
+        providerId: j.str('providerId'),
+        group: j.str('group'),
       );
 
   final String id;
   final String label;
   final String? description;
   final bool live;
+
+  /// The account row or cloud assignment that serves this model; what
+  /// `turn.prompt` takes as `providerId` (spec §7).
+  final String? providerId;
+
+  /// Local mode: `account` (the active account's own models) or `other`
+  /// (another endpoint of the agent's protocol).
+  final String? group;
 }
 
+/// Where a harness's calls go right now — `CatalogRoute` in `src/agents/models.ts`.
 class CatalogRoute {
-  const CatalogRoute({this.kind = 'cli', this.accountName, this.defaultModel});
+  const CatalogRoute({this.kind = 'cli', this.accountId, this.accountName, this.defaultModel});
 
   factory CatalogRoute.fromJson(Map<String, Object?> j) => CatalogRoute(
         kind: j.str('kind') ?? 'cli',
+        accountId: j.str('accountId'),
         accountName: j.str('accountName'),
         defaultModel: j.str('defaultModel'),
       );
 
+  /// `cli`, `official`, `account` or `cloud`.
   final String kind;
+
+  /// The account row in use, for `account`.
+  final String? accountId;
   final String? accountName;
   final String? defaultModel;
 }

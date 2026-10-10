@@ -22,7 +22,9 @@ import 'server_policy.dart';
 /// wrong address, a proxy page), `bad-data` (JSON of the wrong shape),
 /// `no-credentials` (a login answered without a token),
 /// `verification-incomplete` (a second factor was asked for without a flow),
-/// `verify-failed`.
+/// `verify-failed`, `key-not-located` (a key was created, but is not among
+/// the keys listed after — creating again would make a second), `no-key` (a
+/// key's reveal answered without one).
 ///
 /// `session-expired` means there is no session left to use: the server
 /// refused the refresh cookie. A refresh that could not be settled — no
@@ -627,6 +629,45 @@ class BackendClient {
   }
 
   Future<UserInfo> self() async => _decode(await _authed('api/user/self'), UserInfo.fromJson);
+
+  /// The groups this user may put a key in, with their descriptions and ratios.
+  Future<List<TokenGroup>> tokenGroups() async {
+    final data = await _authed('api/user/self/groups');
+    if (data is! Map<String, Object?>) throw const BackendException('bad-data');
+    return [for (final MapEntry(:key, :value) in data.entries) TokenGroup.fromJson(key, asMap(value))];
+  }
+
+  // --- API keys (tokens) -----------------------------------------------------------
+  //
+  // The phone manages the cloud keys with its own login, never through the
+  // desktop (spec §7): the desktop is only asked to use one, by its id.
+
+  /// The account's keys, newest first (the first hundred).
+  Future<List<ApiKeyRow>> tokens() async {
+    final data = await _authed('api/token/', query: {'p': '1', 'page_size': '100', 'sort_by': 'id', 'sort_order': 'desc'});
+    final items = data is Map<String, Object?> ? data['items'] : data;
+    return decodeObjects(items, ApiKeyRow.fromJson);
+  }
+
+  /// Create a key, then find it and fetch the key itself. Creating answers
+  /// with neither its id nor the key: the newest key of that name is it, as
+  /// on the desktop (`createToken` in `src/main/backend.ts`).
+  Future<CreatedKey> createToken(CreateKeyInput input) async {
+    await _authed('api/token/', method: 'POST', body: input.toJson());
+    final created = (await tokens()).where((row) => row.name == input.name).firstOrNull;
+    if (created == null) throw const BackendException('key-not-located');
+    return CreatedKey(id: created.id, key: await revealToken(created.id));
+  }
+
+  /// The whole key, ready for a bearer: new-api keeps it without the `sk-`
+  /// every client sends.
+  Future<String> revealToken(int id) async {
+    final key = asMap(await _authed('api/token/$id/key', method: 'POST')).str('key') ?? '';
+    if (key.isEmpty) throw const BackendException('no-key');
+    return key.startsWith('sk-') ? key : 'sk-$key';
+  }
+
+  Future<void> deleteToken(int id) => _authed('api/token/$id', method: 'DELETE');
 
   // --- companion (spec §9) ---------------------------------------------------------
 

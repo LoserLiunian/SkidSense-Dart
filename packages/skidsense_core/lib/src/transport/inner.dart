@@ -65,6 +65,7 @@ class Welcome {
     this.device = const WelcomeDevice(),
     this.user,
     this.methods = const [],
+    this.features = const [],
   });
 
   factory Welcome.fromJson(Map<String, Object?> json) => Welcome(
@@ -73,6 +74,7 @@ class Welcome {
         device: WelcomeDevice.fromJson(json['device']),
         user: json['user'] is Map ? WelcomeUser.fromJson(json['user']) : null,
         methods: json.strings('methods'),
+        features: json.strings('features'),
       );
 
   final int v;
@@ -81,8 +83,13 @@ class Welcome {
   final WelcomeUser? user;
   final List<String> methods;
 
+  /// What the host can do beyond [methods] — new parameters of old methods
+  /// (`Features`). Empty from a host that predates the field.
+  final List<String> features;
+
   bool can(String method) => methods.contains(method);
   bool hasScope(String scope) => device.scopes.contains(scope);
+  bool supports(String feature) => features.contains(feature);
 }
 
 /// Builders for the inner messages the device sends (spec §6).

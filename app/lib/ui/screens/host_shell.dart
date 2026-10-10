@@ -11,12 +11,13 @@ import '../theme/tokens.dart';
 import 'files_pane.dart';
 import 'git_pane.dart';
 import 'history_pane.dart';
+import 'models_pane.dart';
 import 'sessions_pane.dart';
 import 'settings_screen.dart';
 
-/// One connected computer: its sessions, files, Git and history, as
-/// top-level destinations the window lays out (a bar on a phone, a rail
-/// beside anything wider).
+/// One connected computer: its sessions, files, Git and history — and its
+/// models, from a computer that has them — as top-level destinations the
+/// window lays out (a bar on a phone, a rail beside anything wider).
 class HostShell extends StatefulWidget {
   const HostShell({super.key});
 
@@ -26,6 +27,11 @@ class HostShell extends StatefulWidget {
 
 class _HostShellState extends State<HostShell> {
   int _tab = 0;
+
+  /// The models tab: shown for a computer whose `welcome` lists
+  /// `accounts.list` (spec §7.1), kept while there is no `welcome` to say
+  /// otherwise (a reconnect).
+  bool _models = false;
 
   /// The workspace the files and Git panes show; shared between them.
   final ValueNotifier<String?> workspace = ValueNotifier(null);
@@ -51,20 +57,27 @@ class _HostShellState extends State<HostShell> {
       FilesPane(workspace: workspace),
       GitPane(workspace: workspace),
       const HistoryPane(),
+      const ModelsPane(),
     ];
-    return WatchSelect(app.states, select: (AppState s) => s.welcome?.device.scopes.join(','), builder: (context, _) {
+    return WatchSelect(app.states, select: (AppState s) => (s.welcome?.device.scopes.join(','), s.welcome?.can('accounts.list')), builder: (context, _) {
       final state = app.state;
       bool can(String scope) => state.welcome == null || state.canScope(scope);
+      final welcome = state.welcome;
+      if (welcome != null) _models = welcome.can('accounts.list');
+      // A computer from before the models tab: the other tabs keep their places.
+      final tab = _tab == 4 && !_models ? 0 : _tab;
       return _ShellScope(
         shell: this,
         child: AdaptiveNavigation(
-          selected: _tab,
+          selected: tab,
           onSelected: (index) => setState(() => _tab = index),
           items: [
             NavItem(icon: Icons.forum_outlined, selectedIcon: Icons.forum_rounded, label: l.tabSessions),
             NavItem(icon: Icons.folder_outlined, selectedIcon: Icons.folder_rounded, label: l.tabFiles),
             NavItem(icon: Icons.merge_type_outlined, selectedIcon: Icons.merge_type_rounded, label: l.tabGit),
             NavItem(icon: Icons.history_outlined, selectedIcon: Icons.history_rounded, label: l.tabHistory),
+            // Layers, as on the desktop: `tune` is the composer's options.
+            if (_models) NavItem(icon: Icons.layers_outlined, selectedIcon: Icons.layers_rounded, label: l.tabModels),
           ],
           railLeading: IconButton(
             tooltip: l.backToComputers,
@@ -74,11 +87,11 @@ class _HostShellState extends State<HostShell> {
           body: AnimatedSwitcher(
             duration: context.design.motion.effects.duration,
             child: KeyedSubtree(
-              key: ValueKey(_tab),
-              child: switch (_tab) {
+              key: ValueKey(tab),
+              child: switch (tab) {
                 1 when !can(Scopes.files) => _NotAllowed(scope: Scopes.files),
                 2 when !can(Scopes.git) => _NotAllowed(scope: Scopes.git),
-                _ => panes[_tab],
+                _ => panes[tab],
               },
             ),
           ),
@@ -98,9 +111,17 @@ class _ShellScope extends InheritedWidget {
 }
 
 extension ShellContext on BuildContext {
-  /// Jump to the files (1) or Git (2) pane of the enclosing shell.
+  /// Jump to the files (1), Git (2) or models (4) pane of the enclosing shell.
   void showInShell(int tab, {String? root}) =>
       getInheritedWidgetOfExactType<_ShellScope>()?.shell.show(tab, root: root);
+
+  /// [page], for a route pushed from inside the shell: a route is no
+  /// descendant of the page that pushed it, and without this its
+  /// [showInShell] would reach nothing.
+  Widget keepShell(Widget page) {
+    final scope = getInheritedWidgetOfExactType<_ShellScope>();
+    return scope == null ? page : _ShellScope(shell: scope.shell, child: page);
+  }
 }
 
 class _NotAllowed extends StatelessWidget {

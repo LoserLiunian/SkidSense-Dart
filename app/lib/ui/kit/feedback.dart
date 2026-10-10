@@ -72,13 +72,16 @@ class ProgressBar extends StatelessWidget {
 
 /// A full-width status line with a spinner.
 class LoadingRow extends StatelessWidget {
-  const LoadingRow(this.label, {super.key});
+  const LoadingRow(this.label, {super.key, this.padding = const EdgeInsets.symmetric(horizontal: Gap.lg, vertical: Gap.md)});
 
   final String label;
 
+  /// A page's inset by default; inside content that has its own, less.
+  final EdgeInsetsGeometry padding;
+
   @override
   Widget build(BuildContext context) => Padding(
-        padding: const EdgeInsets.symmetric(horizontal: Gap.lg, vertical: Gap.md),
+        padding: padding,
         child: Row(children: [
           const InlineBusy(),
           const SizedBox(width: Gap.md),
@@ -119,6 +122,9 @@ class InlineBanner extends StatelessWidget {
       BannerTone.success => (colors.secondaryContainer, colors.onSecondaryContainer, Icons.check_circle_outline_rounded),
       BannerTone.info => (colors.surfaceContainerHighest, colors.onSurfaceVariant, Icons.info_outline_rounded),
     };
+    // Its icons grow with its text, as a form's status line's do: 20dp, a
+    // line of the text, at the normal size.
+    final iconSize = MediaQuery.textScalerOf(context).scale(20);
     return Semantics(
       liveRegion: tone == BannerTone.error,
       child: AnimatedSize(
@@ -131,7 +137,7 @@ class InlineBanner extends StatelessWidget {
           ),
           padding: const EdgeInsets.fromLTRB(Gap.lg, Gap.md, Gap.sm, Gap.md),
           child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Padding(padding: const EdgeInsets.only(top: 2), child: Icon(icon ?? glyph, color: foreground, size: 20)),
+            Padding(padding: EdgeInsets.only(top: iconSize / 10), child: Icon(icon ?? glyph, color: foreground, size: iconSize)),
             const SizedBox(width: Gap.md),
             Expanded(
               child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
@@ -141,13 +147,17 @@ class InlineBanner extends StatelessWidget {
                     child: Text(title!, style: context.text.titleSmall?.copyWith(color: foreground)),
                   ),
                 Text(message, style: context.text.bodyMedium?.copyWith(color: foreground)),
-                if (action != null) Padding(padding: const EdgeInsets.only(top: Gap.sm), child: action),
+                if (action != null)
+                  Padding(
+                    padding: const EdgeInsets.only(top: Gap.sm),
+                    child: tone == BannerTone.info ? action : _inked(context, action!, background, foreground),
+                  ),
               ]),
             ),
             if (onDismiss != null)
               IconButton(
                 onPressed: onDismiss,
-                icon: Icon(Icons.close_rounded, color: foreground, size: 20),
+                icon: Icon(Icons.close_rounded, color: foreground, size: iconSize),
                 tooltip: MaterialLocalizations.of(context).closeButtonTooltip,
               )
             else
@@ -157,6 +167,30 @@ class InlineBanner extends StatelessWidget {
       ),
     );
   }
+}
+
+/// [action] in a tinted banner's own ink: the app's button colours clash
+/// with an error's or a warning's container, so its buttons take the
+/// banner's foreground — a tonal one that at 12 % over the banner. A banner
+/// on the neutral surface keeps the app's.
+Widget _inked(BuildContext context, Widget action, Color background, Color foreground) {
+  final theme = Theme.of(context);
+  final tonal = Color.alphaBlend(foreground.withValues(alpha: 0.12), background);
+  return Theme(
+    data: theme.copyWith(
+      colorScheme: theme.colorScheme.copyWith(
+        primary: foreground,
+        onPrimary: background,
+        secondaryContainer: tonal,
+        onSecondaryContainer: foreground,
+        onSurfaceVariant: foreground,
+        outline: foreground,
+        outlineVariant: foreground.withValues(alpha: 0.5),
+      ),
+      progressIndicatorTheme: ProgressIndicatorThemeData(color: foreground),
+    ),
+    child: action,
+  );
 }
 
 /// Nothing to show yet, and what to do about it.

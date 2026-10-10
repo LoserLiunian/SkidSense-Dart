@@ -26,14 +26,14 @@ app/                       Flutter App（com.skidsense.app）
 
 ```sh
 flutter pub get                                   # 工作區：core 與 app 一起
-cd packages/skidsense_core && dart test           # 核心：271 個測試
+cd packages/skidsense_core && dart test           # 核心：351 個測試
 cd app && flutter analyze && flutter test         # App：分析、單元、截圖、無障礙、大字體
 cd app && flutter run                             # 在模擬器或手機上執行
 ```
 
 - **截圖比對**（`test/goldens/`）只在 macOS 上產生與比對（字型依系統而異）。不同 macOS 版本的字形反鋸齒略有差異，比對時忽略：差異超過 64/255 的像素不得多於 0.002%，任何差異的像素不得多於 1%（見 `test/flutter_test_config.dart`）。改了外觀後用 `flutter test --update-goldens` 重繪，**先看過圖再提交**。
 - **無障礙**：`test/accessibility_test.dart` 以 Android 48dp、iOS 44pt 觸控目標、可點擊元素須有標籤、WCAG 文字對比檢查每個畫面的兩種風格與深淺色。
-- **大字體**：`test/large_text_test.dart` 在 360dp 寬的手機上以 2 倍字體、三種語言渲染每個畫面，任何溢出即失敗。
+- **大字體**：`test/large_text_test.dart` 在 360dp 寬的手機上以 2 倍字體、三種語言渲染每個畫面，任何溢出、選項晶片截字或底部分頁標籤換行即失敗；`test/navigation_bar_test.dart` 以真實字型檢查底部分頁標籤在兩種風格、三種語言、360／412dp、1–2 倍字體下都單行完整顯示，並在 300–359dp、1–2 倍字體下逐一選中每個分頁，檢查顯示的標籤完整、不小於正常字級的 0.8 倍、離螢幕邊緣至少 4dp、彼此及與其他圖示至少相隔 8dp，且只在原樣放不下時才一起縮小（只縮到剛好放得下）、縮到 0.8 倍仍放不下才只顯示選中的標籤；1 倍字體下凡 Material 原本的分頁列已符合這些間距，就與它逐像素相同。只顯示選中標籤時，分頁列加高到切換分頁時淡出、淡入的標籤都留在列內且不截字。
 - **連線後的畫面**用 `test/support/demo_host.dart`（FakeHost＋示範資料）在假時鐘上走真協定，不需要真的電腦。
 - **字串**：改 `lib/l10n/*.arb`（三個檔案的鍵必須一致），`flutter pub get` 或 `flutter gen-l10n` 重新產生。繁體中文用台灣用語。
 - **圖示**：`flutter test tool/icons_test.dart`（macOS）重繪 Android 舊版 PNG 與 iOS 1024px 圖示；Android 8+ 用的是 `res/drawable/ic_launcher_foreground.xml` 向量圖，幾何相同。

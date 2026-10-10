@@ -67,13 +67,29 @@ abstract final class Scopes {
   static const gitWrite = 'git.write';
   static const terminal = 'terminal';
 
-  static const all = [sessions, prompt, approve, files, filesWrite, git, gitWrite, terminal];
+  /// Models and accounts (spec §7.1): as much as [terminal] — an account's
+  /// address and extra environment are enough to run anything on the desktop.
+  static const settings = 'settings';
 
-  /// Everything but the terminal: inside a TUI the CLI answers its own
-  /// permission prompts.
+  /// The canonical order (`SCOPES`).
+  static const all = [sessions, prompt, approve, files, filesWrite, git, gitWrite, terminal, settings];
+
+  /// What a backend whose `/config` lists no `scopes` knows: the eight from
+  /// before [settings] (spec §9).
+  static const legacy = [sessions, prompt, approve, files, filesWrite, git, gitWrite, terminal];
+
+  /// Everything but the terminal and the settings: inside a TUI the CLI
+  /// answers its own permission prompts, and the settings reach as far. Both
+  /// are opened per device on the desktop only (spec §8.5).
   static const byDefault = [sessions, prompt, approve, files, filesWrite, git, gitWrite];
 
   static bool isScope(String value) => all.contains(value);
+
+  /// The scopes a backend knows, in canonical order: what its `/config`
+  /// lists, or [legacy] from one that lists none (spec §9). A grant it signs
+  /// carries no other, and a `PATCH` naming another is refused whole — so
+  /// another is neither offered nor sent (spec §8.5).
+  static List<String> known(List<String>? listed) => listed ?? legacy;
 }
 
 /// Every request method and the scope it needs — `METHODS` in protocol.ts.
@@ -114,6 +130,21 @@ abstract final class Methods {
     'tui.input': Scopes.terminal,
     'tui.resize': Scopes.terminal,
     'tui.close': Scopes.terminal,
+    'mode.get': Scopes.sessions,
+    'mode.set': Scopes.settings,
+    'accounts.list': Scopes.sessions,
+    'accounts.presets': Scopes.sessions,
+    'accounts.setActive': Scopes.settings,
+    'accounts.saveGroup': Scopes.settings,
+    'accounts.removeGroup': Scopes.settings,
+    'accounts.remove': Scopes.settings,
+    'models.discover': Scopes.settings,
+    'models.context.list': Scopes.sessions,
+    'models.context.set': Scopes.settings,
+    'commands.list': Scopes.prompt,
+    'cloud.keys.models': Scopes.settings,
+    'cloud.assign': Scopes.settings,
+    'cloud.unassign': Scopes.settings,
   };
 }
 
@@ -128,4 +159,18 @@ abstract final class Events {
   static const gitChanged = 'git.changed';
   static const tuiData = 'tui.data';
   static const tuiExit = 'tui.exit';
+
+  /// The settings changed (spec §6.4), wherever from: `{mode}`, and `{}` for
+  /// the other two — the content is read back, never pushed.
+  static const modeChanged = 'mode.changed';
+  static const accountsChanged = 'accounts.changed';
+  static const modelsContextChanged = 'models.context.changed';
+}
+
+/// What `welcome.features` may name (spec §6.1): behaviour a host has that
+/// its method list does not show.
+abstract final class Features {
+  /// `turn.prompt` takes and checks `providerId`. A host without it ignores
+  /// the parameter, and the turn quietly goes the default way.
+  static const promptProviderId = 'prompt.providerId';
 }

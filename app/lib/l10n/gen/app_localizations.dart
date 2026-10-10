@@ -1142,17 +1142,167 @@ abstract class L10n {
   /// **'Default'**
   String get modelDefault;
 
-  /// No description provided for @modelAccount.
-  ///
-  /// In en, this message translates to:
-  /// **'Model ({account})'**
-  String modelAccount(String account);
-
   /// No description provided for @noModels.
   ///
   /// In en, this message translates to:
   /// **'No model list available'**
   String get noModels;
+
+  /// No description provided for @modelDefaultNamed.
+  ///
+  /// In en, this message translates to:
+  /// **'Default ({model})'**
+  String modelDefaultNamed(String model);
+
+  /// No description provided for @composerModelsLoading.
+  ///
+  /// In en, this message translates to:
+  /// **'Reading the models…'**
+  String get composerModelsLoading;
+
+  /// No description provided for @composerRouteCloud.
+  ///
+  /// In en, this message translates to:
+  /// **'Cloud: through your first-party account'**
+  String get composerRouteCloud;
+
+  /// No description provided for @composerRouteAccount.
+  ///
+  /// In en, this message translates to:
+  /// **'Local account: {account}'**
+  String composerRouteAccount(String account);
+
+  /// No description provided for @composerRouteOfficial.
+  ///
+  /// In en, this message translates to:
+  /// **'Local: Anthropic\'s official subscription (forced)'**
+  String get composerRouteOfficial;
+
+  /// No description provided for @composerRouteCli.
+  ///
+  /// In en, this message translates to:
+  /// **'Local: the agent\'s own configuration'**
+  String get composerRouteCli;
+
+  /// No description provided for @composerAccount.
+  ///
+  /// In en, this message translates to:
+  /// **'Account'**
+  String get composerAccount;
+
+  /// No description provided for @composerAccountHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Set on the computer: every conversation with {agent} uses it from its next turn.'**
+  String composerAccountHint(String agent);
+
+  /// No description provided for @composerModelsCloud.
+  ///
+  /// In en, this message translates to:
+  /// **'Cloud models'**
+  String get composerModelsCloud;
+
+  /// No description provided for @composerModelsAccount.
+  ///
+  /// In en, this message translates to:
+  /// **'Models on {account}'**
+  String composerModelsAccount(String account);
+
+  /// No description provided for @composerModelsCli.
+  ///
+  /// In en, this message translates to:
+  /// **'The CLI\'s own models'**
+  String get composerModelsCli;
+
+  /// No description provided for @composerModelsOtherAccounts.
+  ///
+  /// In en, this message translates to:
+  /// **'Other accounts (this conversation only)'**
+  String get composerModelsOtherAccounts;
+
+  /// No description provided for @composerModelsOtherEndpoints.
+  ///
+  /// In en, this message translates to:
+  /// **'Other endpoints (this conversation only)'**
+  String get composerModelsOtherEndpoints;
+
+  /// No description provided for @composerModelsOtherHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Only this conversation uses it; the account set on the computer stays as it is.'**
+  String get composerModelsOtherHint;
+
+  /// No description provided for @composerCloudEmptyTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'No cloud models yet'**
+  String get composerCloudEmptyTitle;
+
+  /// No description provided for @composerCloudEmptyBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Cloud mode offers only the models assigned to this agent from a cloud key.'**
+  String get composerCloudEmptyBody;
+
+  /// No description provided for @composerOpenModels.
+  ///
+  /// In en, this message translates to:
+  /// **'Assign in Models'**
+  String get composerOpenModels;
+
+  /// No description provided for @slashTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Commands'**
+  String get slashTitle;
+
+  /// No description provided for @slashCount.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{1 command} other{{count} commands}}'**
+  String slashCount(int count);
+
+  /// No description provided for @slashLoading.
+  ///
+  /// In en, this message translates to:
+  /// **'Reading the commands…'**
+  String get slashLoading;
+
+  /// No description provided for @slashSourceBuiltin.
+  ///
+  /// In en, this message translates to:
+  /// **'Built-in'**
+  String get slashSourceBuiltin;
+
+  /// No description provided for @slashSourceCommand.
+  ///
+  /// In en, this message translates to:
+  /// **'Command'**
+  String get slashSourceCommand;
+
+  /// No description provided for @slashSourceSkill.
+  ///
+  /// In en, this message translates to:
+  /// **'Skill'**
+  String get slashSourceSkill;
+
+  /// No description provided for @slashScopeWorkspace.
+  ///
+  /// In en, this message translates to:
+  /// **'This workspace'**
+  String get slashScopeWorkspace;
+
+  /// No description provided for @slashScopeGlobal.
+  ///
+  /// In en, this message translates to:
+  /// **'Global'**
+  String get slashScopeGlobal;
+
+  /// No description provided for @slashAliases.
+  ///
+  /// In en, this message translates to:
+  /// **'Also {names}'**
+  String slashAliases(String names);
 
   /// No description provided for @effort.
   ///
@@ -1940,6 +2090,102 @@ abstract class L10n {
   /// **'Your pairings stay on this phone and come back when you sign in again.'**
   String get signOutBody;
 
+  /// No description provided for @accountSignedIn.
+  ///
+  /// In en, this message translates to:
+  /// **'Signed in'**
+  String get accountSignedIn;
+
+  /// No description provided for @accountUserId.
+  ///
+  /// In en, this message translates to:
+  /// **'User ID'**
+  String get accountUserId;
+
+  /// No description provided for @accountLoading.
+  ///
+  /// In en, this message translates to:
+  /// **'Reading your account…'**
+  String get accountLoading;
+
+  /// No description provided for @accountLoadFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Couldn\'t read your account'**
+  String get accountLoadFailed;
+
+  /// No description provided for @accountGroupsLoadFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Couldn\'t read the groups'**
+  String get accountGroupsLoadFailed;
+
+  /// No description provided for @accountOffline.
+  ///
+  /// In en, this message translates to:
+  /// **'Can\'t reach the server'**
+  String get accountOffline;
+
+  /// No description provided for @accountOfflineBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Check this phone\'s network connection, then try again.'**
+  String get accountOfflineBody;
+
+  /// No description provided for @accountQuota.
+  ///
+  /// In en, this message translates to:
+  /// **'Balance and usage'**
+  String get accountQuota;
+
+  /// No description provided for @accountQuotaHint.
+  ///
+  /// In en, this message translates to:
+  /// **'In US dollars (USD)'**
+  String get accountQuotaHint;
+
+  /// No description provided for @accountBalance.
+  ///
+  /// In en, this message translates to:
+  /// **'Balance'**
+  String get accountBalance;
+
+  /// No description provided for @accountUsed.
+  ///
+  /// In en, this message translates to:
+  /// **'Used'**
+  String get accountUsed;
+
+  /// No description provided for @accountGroups.
+  ///
+  /// In en, this message translates to:
+  /// **'Groups'**
+  String get accountGroups;
+
+  /// No description provided for @accountGroupsHint.
+  ///
+  /// In en, this message translates to:
+  /// **'A call costs its model\'s price times its group\'s ratio. Your keys can use any group here.'**
+  String get accountGroupsHint;
+
+  /// No description provided for @accountGroupYours.
+  ///
+  /// In en, this message translates to:
+  /// **'Your group'**
+  String get accountGroupYours;
+
+  /// No description provided for @accountGroupRatio.
+  ///
+  /// In en, this message translates to:
+  /// **'Ratio {ratio}'**
+  String accountGroupRatio(String ratio);
+
+  /// No description provided for @groupRatioAuto.
+  ///
+  /// In en, this message translates to:
+  /// **'Auto'**
+  String get groupRatioAuto;
+
   /// No description provided for @security.
   ///
   /// In en, this message translates to:
@@ -2162,6 +2408,24 @@ abstract class L10n {
   /// **'The terminal is off by default: inside it the CLI answers its own permission prompts.'**
   String get terminalScopeNote;
 
+  /// No description provided for @settingsScopeNote.
+  ///
+  /// In en, this message translates to:
+  /// **'Models & accounts is off by default and only the computer can turn it on: it can point the agents at any server and set their environment — as much as the terminal.'**
+  String get settingsScopeNote;
+
+  /// No description provided for @settingsScopeWarning.
+  ///
+  /// In en, this message translates to:
+  /// **'This phone may change models and accounts: it can point the agents at any server and set their environment, enough to run anything on the computer — as much as the terminal.'**
+  String get settingsScopeWarning;
+
+  /// No description provided for @settingsScopeLocked.
+  ///
+  /// In en, this message translates to:
+  /// **'As much as the terminal: enough to run anything on the computer. Only the computer can turn it on; here it can only be turned off.'**
+  String get settingsScopeLocked;
+
   /// No description provided for @thisDevice.
   ///
   /// In en, this message translates to:
@@ -2305,6 +2569,12 @@ abstract class L10n {
   /// In en, this message translates to:
   /// **'Terminal'**
   String get scopeTerminal;
+
+  /// No description provided for @scopeSettings.
+  ///
+  /// In en, this message translates to:
+  /// **'Models & accounts'**
+  String get scopeSettings;
 
   /// No description provided for @lockedTitle.
   ///
@@ -2863,6 +3133,1476 @@ abstract class L10n {
   /// In en, this message translates to:
   /// **'The computer\'s key in this code is invalid'**
   String get pairCodeBadKey;
+
+  /// No description provided for @tabModels.
+  ///
+  /// In en, this message translates to:
+  /// **'Models'**
+  String get tabModels;
+
+  /// No description provided for @modelsTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Models'**
+  String get modelsTitle;
+
+  /// No description provided for @modelsReadOnlyTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'View only'**
+  String get modelsReadOnlyTitle;
+
+  /// No description provided for @modelsReadOnlyBody.
+  ///
+  /// In en, this message translates to:
+  /// **'To change models and accounts from this phone, turn on “Models & accounts” for it under Remote access on the computer.'**
+  String get modelsReadOnlyBody;
+
+  /// No description provided for @modelsReadOnlyUnsupported.
+  ///
+  /// In en, this message translates to:
+  /// **'The server this computer uses can\'t let a phone change models and accounts yet: here they can only be viewed.'**
+  String get modelsReadOnlyUnsupported;
+
+  /// No description provided for @modelsReadOnlyOldComputer.
+  ///
+  /// In en, this message translates to:
+  /// **'SkidSense on this computer can\'t take these changes from a phone yet: update it on the computer to change them here.'**
+  String get modelsReadOnlyOldComputer;
+
+  /// No description provided for @modelsRoute.
+  ///
+  /// In en, this message translates to:
+  /// **'Route'**
+  String get modelsRoute;
+
+  /// No description provided for @modelsRouteHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Where the agents\' calls go. Switching affects every conversation on this computer.'**
+  String get modelsRouteHint;
+
+  /// No description provided for @modelsLocalMode.
+  ///
+  /// In en, this message translates to:
+  /// **'Local'**
+  String get modelsLocalMode;
+
+  /// No description provided for @modelsLocalModeHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Each agent uses its own account and subscription on this computer, not the first-party service.'**
+  String get modelsLocalModeHint;
+
+  /// No description provided for @modelsCloudMode.
+  ///
+  /// In en, this message translates to:
+  /// **'Cloud'**
+  String get modelsCloudMode;
+
+  /// No description provided for @modelsCloudModeHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Every agent goes through your first-party account, using only the models assigned under the API keys.'**
+  String get modelsCloudModeHint;
+
+  /// No description provided for @modelsSwitch.
+  ///
+  /// In en, this message translates to:
+  /// **'Switch'**
+  String get modelsSwitch;
+
+  /// No description provided for @modelsSwitchCloudTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Switch to cloud?'**
+  String get modelsSwitchCloudTitle;
+
+  /// No description provided for @modelsSwitchCloudBody.
+  ///
+  /// In en, this message translates to:
+  /// **'This affects every conversation on this computer: from the next turn, every agent goes through your first-party account, with only the models assigned to it.'**
+  String get modelsSwitchCloudBody;
+
+  /// No description provided for @modelsSwitchLocalTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Switch back to local?'**
+  String get modelsSwitchLocalTitle;
+
+  /// No description provided for @modelsSwitchLocalBody.
+  ///
+  /// In en, this message translates to:
+  /// **'This affects every conversation on this computer: from the next turn, each agent uses the account chosen for it under Local accounts.'**
+  String get modelsSwitchLocalBody;
+
+  /// No description provided for @modelsSwitchedCloud.
+  ///
+  /// In en, this message translates to:
+  /// **'Switched to cloud'**
+  String get modelsSwitchedCloud;
+
+  /// No description provided for @modelsSwitchedLocal.
+  ///
+  /// In en, this message translates to:
+  /// **'Switched back to local'**
+  String get modelsSwitchedLocal;
+
+  /// No description provided for @modelsSwitchRefused.
+  ///
+  /// In en, this message translates to:
+  /// **'The computer didn\'t switch'**
+  String get modelsSwitchRefused;
+
+  /// No description provided for @modelsLocal.
+  ///
+  /// In en, this message translates to:
+  /// **'Local accounts'**
+  String get modelsLocal;
+
+  /// No description provided for @modelsLocalHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Which account each agent uses in local mode. Injected only when the computer starts it: the CLIs\' own configuration files are never changed.'**
+  String get modelsLocalHint;
+
+  /// No description provided for @modelsLocalCloudNote.
+  ///
+  /// In en, this message translates to:
+  /// **'Cloud mode is on: the agents go through the first-party account. These choices take effect when you switch back to local.'**
+  String get modelsLocalCloudNote;
+
+  /// No description provided for @modelsLoading.
+  ///
+  /// In en, this message translates to:
+  /// **'Reading the computer\'s models and accounts…'**
+  String get modelsLoading;
+
+  /// No description provided for @modelsNoHarnesses.
+  ///
+  /// In en, this message translates to:
+  /// **'No agent on this computer takes an account.'**
+  String get modelsNoHarnesses;
+
+  /// No description provided for @modelsNotInstalled.
+  ///
+  /// In en, this message translates to:
+  /// **'Not installed'**
+  String get modelsNotInstalled;
+
+  /// No description provided for @modelsNotDriven.
+  ///
+  /// In en, this message translates to:
+  /// **'Not supported yet'**
+  String get modelsNotDriven;
+
+  /// No description provided for @modelsChoiceCli.
+  ///
+  /// In en, this message translates to:
+  /// **'Follow the CLI\'s own configuration'**
+  String get modelsChoiceCli;
+
+  /// No description provided for @modelsChoiceOfficial.
+  ///
+  /// In en, this message translates to:
+  /// **'Official subscription (forced)'**
+  String get modelsChoiceOfficial;
+
+  /// No description provided for @modelsChoiceGone.
+  ///
+  /// In en, this message translates to:
+  /// **'A deleted account'**
+  String get modelsChoiceGone;
+
+  /// No description provided for @modelsRouteCli.
+  ///
+  /// In en, this message translates to:
+  /// **'Decided by the CLI\'s own configuration (for example the file cc-switch writes)'**
+  String get modelsRouteCli;
+
+  /// No description provided for @modelsRouteOfficial.
+  ///
+  /// In en, this message translates to:
+  /// **'Forces Anthropic\'s official subscription login, over any third-party endpoint in settings.json'**
+  String get modelsRouteOfficial;
+
+  /// No description provided for @modelsRouteModelByCli.
+  ///
+  /// In en, this message translates to:
+  /// **'model chosen by the CLI'**
+  String get modelsRouteModelByCli;
+
+  /// No description provided for @modelsNoKeyStored.
+  ///
+  /// In en, this message translates to:
+  /// **'no key stored'**
+  String get modelsNoKeyStored;
+
+  /// No description provided for @modelsChoiceTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Account for {agent}'**
+  String modelsChoiceTitle(String agent);
+
+  /// No description provided for @modelsChoiceHint.
+  ///
+  /// In en, this message translates to:
+  /// **'The accounts that speak {dialect}'**
+  String modelsChoiceHint(String dialect);
+
+  /// No description provided for @modelsChoiceNone.
+  ///
+  /// In en, this message translates to:
+  /// **'No {dialect} account yet.'**
+  String modelsChoiceNone(String dialect);
+
+  /// No description provided for @modelsAccounts.
+  ///
+  /// In en, this message translates to:
+  /// **'Accounts'**
+  String get modelsAccounts;
+
+  /// No description provided for @modelsAccountsHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Add DeepSeek, Zhipu, Kimi, OpenRouter and more from a preset, or your own relay. Keys stay in the computer\'s keychain.'**
+  String get modelsAccountsHint;
+
+  /// No description provided for @modelsAccountsHintReadOnly.
+  ///
+  /// In en, this message translates to:
+  /// **'The provider accounts on the computer. Their keys stay in its keychain.'**
+  String get modelsAccountsHintReadOnly;
+
+  /// No description provided for @modelsNoAccounts.
+  ///
+  /// In en, this message translates to:
+  /// **'No accounts yet. Add one: pick a preset and enter its key.'**
+  String get modelsNoAccounts;
+
+  /// No description provided for @modelsAddAccount.
+  ///
+  /// In en, this message translates to:
+  /// **'Add account'**
+  String get modelsAddAccount;
+
+  /// No description provided for @modelsLegacy.
+  ///
+  /// In en, this message translates to:
+  /// **'Older endpoint'**
+  String get modelsLegacy;
+
+  /// No description provided for @modelsLegacyHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Pick its protocol to make it an account'**
+  String get modelsLegacyHint;
+
+  /// No description provided for @modelsPresetTag.
+  ///
+  /// In en, this message translates to:
+  /// **'{preset} preset'**
+  String modelsPresetTag(String preset);
+
+  /// No description provided for @modelsKeyStored.
+  ///
+  /// In en, this message translates to:
+  /// **'Key stored'**
+  String get modelsKeyStored;
+
+  /// No description provided for @modelsKeyMissing.
+  ///
+  /// In en, this message translates to:
+  /// **'No key'**
+  String get modelsKeyMissing;
+
+  /// No description provided for @modelsDialectModels.
+  ///
+  /// In en, this message translates to:
+  /// **'{dialect} ({count, plural, =1{1 model} other{{count} models}})'**
+  String modelsDialectModels(String dialect, int count);
+
+  /// No description provided for @modelsDeleteAccountTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete “{name}”?'**
+  String modelsDeleteAccountTitle(String name);
+
+  /// No description provided for @modelsDeleteAccountBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Its key is deleted from the computer\'s keychain too. Agents using it go back to following the CLI\'s own configuration.'**
+  String get modelsDeleteAccountBody;
+
+  /// No description provided for @modelsAccountDeleted.
+  ///
+  /// In en, this message translates to:
+  /// **'Deleted “{name}”'**
+  String modelsAccountDeleted(String name);
+
+  /// No description provided for @modelsDeleteConflict.
+  ///
+  /// In en, this message translates to:
+  /// **'This account was changed elsewhere and has been read again. Check it, then delete it if you still want to.'**
+  String get modelsDeleteConflict;
+
+  /// No description provided for @modelsCloud.
+  ///
+  /// In en, this message translates to:
+  /// **'Cloud API keys'**
+  String get modelsCloud;
+
+  /// No description provided for @modelsCloudHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Cloud mode runs on these: pick a key and assign its models to the agents. Managed with this phone\'s own sign-in.'**
+  String get modelsCloudHint;
+
+  /// No description provided for @keysLoading.
+  ///
+  /// In en, this message translates to:
+  /// **'Reading your keys…'**
+  String get keysLoading;
+
+  /// No description provided for @keysEmpty.
+  ///
+  /// In en, this message translates to:
+  /// **'No keys yet. Create one to use cloud mode.'**
+  String get keysEmpty;
+
+  /// No description provided for @keyUnnamed.
+  ///
+  /// In en, this message translates to:
+  /// **'Unnamed'**
+  String get keyUnnamed;
+
+  /// The name the computer gives an assignment from a key with no name (desktop: 第一方 Key)
+  ///
+  /// In en, this message translates to:
+  /// **'First-party key'**
+  String get assignUnnamedKey;
+
+  /// No description provided for @keyUnlimited.
+  ///
+  /// In en, this message translates to:
+  /// **'Unlimited quota'**
+  String get keyUnlimited;
+
+  /// No description provided for @keyRemaining.
+  ///
+  /// In en, this message translates to:
+  /// **'{amount} left'**
+  String keyRemaining(String amount);
+
+  /// No description provided for @keyGroupNamed.
+  ///
+  /// In en, this message translates to:
+  /// **'group {group}'**
+  String keyGroupNamed(String group);
+
+  /// No description provided for @keyGroupDefault.
+  ///
+  /// In en, this message translates to:
+  /// **'The account\'s default'**
+  String get keyGroupDefault;
+
+  /// No description provided for @keyDisabled.
+  ///
+  /// In en, this message translates to:
+  /// **'Disabled'**
+  String get keyDisabled;
+
+  /// No description provided for @keyExpired.
+  ///
+  /// In en, this message translates to:
+  /// **'Expired'**
+  String get keyExpired;
+
+  /// No description provided for @keyExhausted.
+  ///
+  /// In en, this message translates to:
+  /// **'Used up'**
+  String get keyExhausted;
+
+  /// No description provided for @keyAssign.
+  ///
+  /// In en, this message translates to:
+  /// **'Assign models'**
+  String get keyAssign;
+
+  /// No description provided for @keyReveal.
+  ///
+  /// In en, this message translates to:
+  /// **'Show the whole key'**
+  String get keyReveal;
+
+  /// No description provided for @keyCreate.
+  ///
+  /// In en, this message translates to:
+  /// **'New key'**
+  String get keyCreate;
+
+  /// No description provided for @keyCreateTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'New API key'**
+  String get keyCreateTitle;
+
+  /// No description provided for @keyCreateHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Made on your account with this phone\'s sign-in; the computer is not involved.'**
+  String get keyCreateHint;
+
+  /// No description provided for @keyName.
+  ///
+  /// In en, this message translates to:
+  /// **'Name'**
+  String get keyName;
+
+  /// No description provided for @keyNameHint.
+  ///
+  /// In en, this message translates to:
+  /// **'e.g. My laptop'**
+  String get keyNameHint;
+
+  /// No description provided for @keyNameRequired.
+  ///
+  /// In en, this message translates to:
+  /// **'Give the key a name'**
+  String get keyNameRequired;
+
+  /// No description provided for @keyNameTooLong.
+  ///
+  /// In en, this message translates to:
+  /// **'Too long: at most {letters} letters, or {chinese} Chinese characters'**
+  String keyNameTooLong(int letters, int chinese);
+
+  /// No description provided for @keyGroup.
+  ///
+  /// In en, this message translates to:
+  /// **'Group'**
+  String get keyGroup;
+
+  /// No description provided for @keyGroupsLoading.
+  ///
+  /// In en, this message translates to:
+  /// **'Reading your groups…'**
+  String get keyGroupsLoading;
+
+  /// No description provided for @keyUnlimitedHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Spends from the account\'s balance with no cap of its own'**
+  String get keyUnlimitedHint;
+
+  /// No description provided for @keyQuota.
+  ///
+  /// In en, this message translates to:
+  /// **'Quota (USD)'**
+  String get keyQuota;
+
+  /// No description provided for @keyQuotaInvalid.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter an amount above 0'**
+  String get keyQuotaInvalid;
+
+  /// No description provided for @keyExpiry.
+  ///
+  /// In en, this message translates to:
+  /// **'Expires'**
+  String get keyExpiry;
+
+  /// No description provided for @keyExpiryNever.
+  ///
+  /// In en, this message translates to:
+  /// **'Never'**
+  String get keyExpiryNever;
+
+  /// No description provided for @keyExpiryDays.
+  ///
+  /// In en, this message translates to:
+  /// **'{days, plural, =1{1 day} other{{days} days}}'**
+  String keyExpiryDays(int days);
+
+  /// No description provided for @keyCreatedTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Key created'**
+  String get keyCreatedTitle;
+
+  /// No description provided for @keyShownOnce.
+  ///
+  /// In en, this message translates to:
+  /// **'This is the whole key, shown only this once.'**
+  String get keyShownOnce;
+
+  /// No description provided for @keyRevealTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Key “{name}”'**
+  String keyRevealTitle(String name);
+
+  /// No description provided for @keyRevealHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Keep it safe: anyone who has it can spend your balance.'**
+  String get keyRevealHint;
+
+  /// No description provided for @keyRevealReason.
+  ///
+  /// In en, this message translates to:
+  /// **'Unlock to show the whole key'**
+  String get keyRevealReason;
+
+  /// No description provided for @keyDeleteTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete the key “{name}”?'**
+  String keyDeleteTitle(String name);
+
+  /// No description provided for @keyDeleteBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Everything using it stops working, the cloud assignments made from it included. This can\'t be undone.'**
+  String get keyDeleteBody;
+
+  /// No description provided for @modelsAssigned.
+  ///
+  /// In en, this message translates to:
+  /// **'Assigned to agents'**
+  String get modelsAssigned;
+
+  /// No description provided for @modelsAssignedHint.
+  ///
+  /// In en, this message translates to:
+  /// **'What cloud mode routes each agent through.'**
+  String get modelsAssignedHint;
+
+  /// No description provided for @modelsNoModelsAssigned.
+  ///
+  /// In en, this message translates to:
+  /// **'No models specified'**
+  String get modelsNoModelsAssigned;
+
+  /// No description provided for @modelsUnassign.
+  ///
+  /// In en, this message translates to:
+  /// **'Unassign'**
+  String get modelsUnassign;
+
+  /// No description provided for @modelsUnassignTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Unassign “{name}”?'**
+  String modelsUnassignTitle(String name);
+
+  /// No description provided for @modelsUnassignBody.
+  ///
+  /// In en, this message translates to:
+  /// **'In cloud mode the agent can no longer use these models. The key itself is kept.'**
+  String get modelsUnassignBody;
+
+  /// No description provided for @modelsUnassigned.
+  ///
+  /// In en, this message translates to:
+  /// **'Unassigned “{name}”'**
+  String modelsUnassigned(String name);
+
+  /// No description provided for @assignTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Assign models'**
+  String get assignTitle;
+
+  /// No description provided for @assignHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Tick models and choose the agent they go to; cloud mode uses these. Each shows up as “agent · {key}”.'**
+  String assignHint(String key);
+
+  /// No description provided for @assignTo.
+  ///
+  /// In en, this message translates to:
+  /// **'Assigning to'**
+  String get assignTo;
+
+  /// No description provided for @assignToHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Models ticked now go to this agent; pick another to give them to several.'**
+  String get assignToHint;
+
+  /// No description provided for @assignToOnlyHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Models ticked now go to this agent, the only one on this computer.'**
+  String get assignToOnlyHint;
+
+  /// No description provided for @assignAgentsLoading.
+  ///
+  /// In en, this message translates to:
+  /// **'Reading the computer\'s agents…'**
+  String get assignAgentsLoading;
+
+  /// No description provided for @assignAgentsFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Couldn\'t read the computer\'s agents'**
+  String get assignAgentsFailed;
+
+  /// No description provided for @assignNoAgents.
+  ///
+  /// In en, this message translates to:
+  /// **'No agent on this computer is installed and supported.'**
+  String get assignNoAgents;
+
+  /// No description provided for @assignSearch.
+  ///
+  /// In en, this message translates to:
+  /// **'Search models'**
+  String get assignSearch;
+
+  /// No description provided for @assignLoading.
+  ///
+  /// In en, this message translates to:
+  /// **'Asking for this key\'s models…'**
+  String get assignLoading;
+
+  /// No description provided for @assignNoModels.
+  ///
+  /// In en, this message translates to:
+  /// **'This key returned no models.'**
+  String get assignNoModels;
+
+  /// No description provided for @assignGoesTo.
+  ///
+  /// In en, this message translates to:
+  /// **'To {agents}'**
+  String assignGoesTo(String agents);
+
+  /// No description provided for @assignSummary.
+  ///
+  /// In en, this message translates to:
+  /// **'{agent}: {count, plural, =1{1 model} other{{count} models}} ticked · {places, plural, =1{1 assignment} other{{places} assignments}} in all'**
+  String assignSummary(String agent, int count, int places);
+
+  /// No description provided for @assignConfirm.
+  ///
+  /// In en, this message translates to:
+  /// **'Confirm'**
+  String get assignConfirm;
+
+  /// No description provided for @assignNoneSelected.
+  ///
+  /// In en, this message translates to:
+  /// **'Tick at least one model'**
+  String get assignNoneSelected;
+
+  /// No description provided for @assignTooMany.
+  ///
+  /// In en, this message translates to:
+  /// **'An agent takes at most {limit} models at a time'**
+  String assignTooMany(int limit);
+
+  /// No description provided for @assignPartial.
+  ///
+  /// In en, this message translates to:
+  /// **'Only partly done. Made: {made}. Then: {error}'**
+  String assignPartial(String made, String error);
+
+  /// No description provided for @assignDone.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{Set up 1 agent} other{Set up {count} agents}}'**
+  String assignDone(int count);
+
+  /// No description provided for @ctxTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Context and auto-compaction'**
+  String get ctxTitle;
+
+  /// No description provided for @ctxEntry.
+  ///
+  /// In en, this message translates to:
+  /// **'When each model compacts'**
+  String get ctxEntry;
+
+  /// No description provided for @ctxEntryHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Compact only once the context grows past a size you set'**
+  String get ctxEntryHint;
+
+  /// No description provided for @ctxHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Give a model a size ({min}–{max}): its context is compacted only once it grows past it. A model without one is left to its agent. The window is what the model can hold.'**
+  String ctxHint(String min, String max);
+
+  /// No description provided for @ctxLoading.
+  ///
+  /// In en, this message translates to:
+  /// **'Reading the models…'**
+  String get ctxLoading;
+
+  /// No description provided for @ctxEmpty.
+  ///
+  /// In en, this message translates to:
+  /// **'No models to set yet.'**
+  String get ctxEmpty;
+
+  /// No description provided for @ctxCliGroup.
+  ///
+  /// In en, this message translates to:
+  /// **'{agent}, built in'**
+  String ctxCliGroup(String agent);
+
+  /// No description provided for @ctxCloudGroup.
+  ///
+  /// In en, this message translates to:
+  /// **'{agent}, cloud key “{key}”'**
+  String ctxCloudGroup(String agent, String key);
+
+  /// No description provided for @ctxDefaultModel.
+  ///
+  /// In en, this message translates to:
+  /// **'Default model'**
+  String get ctxDefaultModel;
+
+  /// No description provided for @ctxNoAgents.
+  ///
+  /// In en, this message translates to:
+  /// **'No agent can use it yet.'**
+  String get ctxNoAgents;
+
+  /// No description provided for @ctxSupportLine.
+  ///
+  /// In en, this message translates to:
+  /// **'{agents}: {support}'**
+  String ctxSupportLine(String agents, String support);
+
+  /// No description provided for @ctxSupportNative.
+  ///
+  /// In en, this message translates to:
+  /// **'compacts at the size'**
+  String get ctxSupportNative;
+
+  /// No description provided for @ctxSupportManaged.
+  ///
+  /// In en, this message translates to:
+  /// **'checked between turns; past it, compacted before the next message'**
+  String get ctxSupportManaged;
+
+  /// No description provided for @ctxSupportUnsupported.
+  ///
+  /// In en, this message translates to:
+  /// **'can\'t be set; it decides itself'**
+  String get ctxSupportUnsupported;
+
+  /// No description provided for @ctxWindow.
+  ///
+  /// In en, this message translates to:
+  /// **'Window {size} · {source}'**
+  String ctxWindow(String size, String source);
+
+  /// No description provided for @ctxSourceCustom.
+  ///
+  /// In en, this message translates to:
+  /// **'set by you'**
+  String get ctxSourceCustom;
+
+  /// No description provided for @ctxSourceDiscovered.
+  ///
+  /// In en, this message translates to:
+  /// **'reported by the endpoint'**
+  String get ctxSourceDiscovered;
+
+  /// No description provided for @ctxSourcePreset.
+  ///
+  /// In en, this message translates to:
+  /// **'account preset'**
+  String get ctxSourcePreset;
+
+  /// No description provided for @ctxSourceKnown.
+  ///
+  /// In en, this message translates to:
+  /// **'model default'**
+  String get ctxSourceKnown;
+
+  /// No description provided for @ctxSourceEstimate.
+  ///
+  /// In en, this message translates to:
+  /// **'estimate'**
+  String get ctxSourceEstimate;
+
+  /// No description provided for @ctxDefault.
+  ///
+  /// In en, this message translates to:
+  /// **'Default'**
+  String get ctxDefault;
+
+  /// No description provided for @ctxSliderLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Compaction size for {model}'**
+  String ctxSliderLabel(String model);
+
+  /// No description provided for @ctxCustom.
+  ///
+  /// In en, this message translates to:
+  /// **'Compacts once the context passes {size}, not before.'**
+  String ctxCustom(String size);
+
+  /// No description provided for @ctxDefaultState.
+  ///
+  /// In en, this message translates to:
+  /// **'Default: the agent decides.'**
+  String get ctxDefaultState;
+
+  /// No description provided for @ctxOverWindow.
+  ///
+  /// In en, this message translates to:
+  /// **'That\'s more than the {window} window: the agent compacts on its own before then. If the window is wrong, correct it.'**
+  String ctxOverWindow(String window);
+
+  /// No description provided for @ctxEditWindow.
+  ///
+  /// In en, this message translates to:
+  /// **'Correct the window'**
+  String get ctxEditWindow;
+
+  /// No description provided for @ctxResetWindow.
+  ///
+  /// In en, this message translates to:
+  /// **'Reset the window'**
+  String get ctxResetWindow;
+
+  /// No description provided for @ctxReset.
+  ///
+  /// In en, this message translates to:
+  /// **'Reset to default'**
+  String get ctxReset;
+
+  /// No description provided for @ctxWindowField.
+  ///
+  /// In en, this message translates to:
+  /// **'Window, like 200k, 1m or 200000'**
+  String get ctxWindowField;
+
+  /// No description provided for @ctxWindowInvalid.
+  ///
+  /// In en, this message translates to:
+  /// **'Write the window like 200k, 1m or 200000 (1K–100M)'**
+  String get ctxWindowInvalid;
+
+  /// No description provided for @editorAddTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Add account'**
+  String get editorAddTitle;
+
+  /// No description provided for @editorEditTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Edit account'**
+  String get editorEditTitle;
+
+  /// No description provided for @editorAdd.
+  ///
+  /// In en, this message translates to:
+  /// **'Add'**
+  String get editorAdd;
+
+  /// No description provided for @editorSaved.
+  ///
+  /// In en, this message translates to:
+  /// **'Saved “{name}”'**
+  String editorSaved(String name);
+
+  /// No description provided for @editorAdded.
+  ///
+  /// In en, this message translates to:
+  /// **'Added “{name}”: choose it for an agent under Local accounts'**
+  String editorAdded(String name);
+
+  /// No description provided for @editorPreset.
+  ///
+  /// In en, this message translates to:
+  /// **'Preset'**
+  String get editorPreset;
+
+  /// No description provided for @editorPresetHint.
+  ///
+  /// In en, this message translates to:
+  /// **'A preset fills in each protocol\'s address and models. Model names change often: fetch them before saving.'**
+  String get editorPresetHint;
+
+  /// No description provided for @editorPresetSearch.
+  ///
+  /// In en, this message translates to:
+  /// **'Search vendors'**
+  String get editorPresetSearch;
+
+  /// No description provided for @editorPresetsLoading.
+  ///
+  /// In en, this message translates to:
+  /// **'Reading the presets…'**
+  String get editorPresetsLoading;
+
+  /// No description provided for @editorPresetCredit.
+  ///
+  /// In en, this message translates to:
+  /// **'Some presets come from cc-switch, under the MIT License.'**
+  String get editorPresetCredit;
+
+  /// No description provided for @editorPresetLicense.
+  ///
+  /// In en, this message translates to:
+  /// **'License'**
+  String get editorPresetLicense;
+
+  /// No description provided for @editorPresetCustom.
+  ///
+  /// In en, this message translates to:
+  /// **'Custom'**
+  String get editorPresetCustom;
+
+  /// No description provided for @editorAccountSection.
+  ///
+  /// In en, this message translates to:
+  /// **'Account'**
+  String get editorAccountSection;
+
+  /// No description provided for @editorName.
+  ///
+  /// In en, this message translates to:
+  /// **'Name'**
+  String get editorName;
+
+  /// No description provided for @editorNameHint.
+  ///
+  /// In en, this message translates to:
+  /// **'e.g. DeepSeek (personal)'**
+  String get editorNameHint;
+
+  /// No description provided for @editorNameRequired.
+  ///
+  /// In en, this message translates to:
+  /// **'Give the account a name'**
+  String get editorNameRequired;
+
+  /// No description provided for @editorNote.
+  ///
+  /// In en, this message translates to:
+  /// **'Note'**
+  String get editorNote;
+
+  /// No description provided for @editorNoteHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Whose key, what for, how it\'s billed…'**
+  String get editorNoteHint;
+
+  /// No description provided for @editorApiKey.
+  ///
+  /// In en, this message translates to:
+  /// **'API key'**
+  String get editorApiKey;
+
+  /// No description provided for @editorKeyShared.
+  ///
+  /// In en, this message translates to:
+  /// **'One key for every protocol, kept in the computer\'s keychain and never shown again.'**
+  String get editorKeyShared;
+
+  /// No description provided for @editorKeyKept.
+  ///
+  /// In en, this message translates to:
+  /// **'One key for every protocol. A key is stored: leave this empty to keep it.'**
+  String get editorKeyKept;
+
+  /// No description provided for @editorKeyWillClear.
+  ///
+  /// In en, this message translates to:
+  /// **'The stored key is cleared when you save.'**
+  String get editorKeyWillClear;
+
+  /// No description provided for @editorClearKey.
+  ///
+  /// In en, this message translates to:
+  /// **'Clear the stored key'**
+  String get editorClearKey;
+
+  /// No description provided for @editorClearKeyHint.
+  ///
+  /// In en, this message translates to:
+  /// **'For an endpoint that needs none'**
+  String get editorClearKeyHint;
+
+  /// No description provided for @editorProtocols.
+  ///
+  /// In en, this message translates to:
+  /// **'Protocol endpoints'**
+  String get editorProtocols;
+
+  /// No description provided for @editorProtocolsHint.
+  ///
+  /// In en, this message translates to:
+  /// **'One account per vendor: an endpoint for each protocol it speaks, one key for all of them.'**
+  String get editorProtocolsHint;
+
+  /// No description provided for @editorNoProtocol.
+  ///
+  /// In en, this message translates to:
+  /// **'Turn on at least one protocol'**
+  String get editorNoProtocol;
+
+  /// No description provided for @editorDialectFor.
+  ///
+  /// In en, this message translates to:
+  /// **'For {agents}'**
+  String editorDialectFor(String agents);
+
+  /// No description provided for @editorBaseUrl.
+  ///
+  /// In en, this message translates to:
+  /// **'Base URL'**
+  String get editorBaseUrl;
+
+  /// No description provided for @editorUrlRequired.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter the Base URL'**
+  String get editorUrlRequired;
+
+  /// No description provided for @editorUrlNotAddress.
+  ///
+  /// In en, this message translates to:
+  /// **'Not a valid address, like https://api.example.com/v1'**
+  String get editorUrlNotAddress;
+
+  /// No description provided for @editorUrlNotHttp.
+  ///
+  /// In en, this message translates to:
+  /// **'Must start with http:// or https://'**
+  String get editorUrlNotHttp;
+
+  /// No description provided for @editorModels.
+  ///
+  /// In en, this message translates to:
+  /// **'Models'**
+  String get editorModels;
+
+  /// No description provided for @editorModelsHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Fetch asks the endpoint itself for its list.'**
+  String get editorModelsHint;
+
+  /// No description provided for @editorFetch.
+  ///
+  /// In en, this message translates to:
+  /// **'Fetch models'**
+  String get editorFetch;
+
+  /// No description provided for @editorModelList.
+  ///
+  /// In en, this message translates to:
+  /// **'Model ids'**
+  String get editorModelList;
+
+  /// No description provided for @editorModelsHelper.
+  ///
+  /// In en, this message translates to:
+  /// **'One per line, or separated by commas'**
+  String get editorModelsHelper;
+
+  /// No description provided for @editorCodexNeedsModel.
+  ///
+  /// In en, this message translates to:
+  /// **'Codex needs a model on this endpoint: list one, or set the default model'**
+  String get editorCodexNeedsModel;
+
+  /// No description provided for @editorFetching.
+  ///
+  /// In en, this message translates to:
+  /// **'Asking the endpoint for its models…'**
+  String get editorFetching;
+
+  /// No description provided for @editorFetchFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Couldn\'t fetch the models'**
+  String get editorFetchFailed;
+
+  /// No description provided for @editorFetched.
+  ///
+  /// In en, this message translates to:
+  /// **'Got {count, plural, =1{1 model} other{{count} models}} and filled in the list.'**
+  String editorFetched(int count);
+
+  /// No description provided for @editorFetchedSome.
+  ///
+  /// In en, this message translates to:
+  /// **'Got {count} models; filled in the first {kept}, as many as a protocol keeps.'**
+  String editorFetchedSome(int count, int kept);
+
+  /// No description provided for @editorFetchNeedsUrl.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter the Base URL first'**
+  String get editorFetchNeedsUrl;
+
+  /// No description provided for @editorFetchNoQuery.
+  ///
+  /// In en, this message translates to:
+  /// **'The address can\'t have ? or # in it: the model list\'s path goes after it'**
+  String get editorFetchNoQuery;
+
+  /// No description provided for @editorFetchRejected.
+  ///
+  /// In en, this message translates to:
+  /// **'The key was rejected ({status}): check this endpoint\'s key'**
+  String editorFetchRejected(int status);
+
+  /// No description provided for @editorFetchHttp.
+  ///
+  /// In en, this message translates to:
+  /// **'The endpoint answered HTTP {status}'**
+  String editorFetchHttp(int status);
+
+  /// No description provided for @editorFetchTimeout.
+  ///
+  /// In en, this message translates to:
+  /// **'The endpoint didn\'t answer within 20 seconds'**
+  String get editorFetchTimeout;
+
+  /// No description provided for @editorFetchNetwork.
+  ///
+  /// In en, this message translates to:
+  /// **'Couldn\'t reach this address'**
+  String get editorFetchNetwork;
+
+  /// No description provided for @editorFetchNotJson.
+  ///
+  /// In en, this message translates to:
+  /// **'The endpoint\'s answer isn\'t JSON'**
+  String get editorFetchNotJson;
+
+  /// No description provided for @editorFetchEmpty.
+  ///
+  /// In en, this message translates to:
+  /// **'The endpoint listed no models'**
+  String get editorFetchEmpty;
+
+  /// No description provided for @editorFetchTooLarge.
+  ///
+  /// In en, this message translates to:
+  /// **'The endpoint\'s answer is too large (over 8 MiB)'**
+  String get editorFetchTooLarge;
+
+  /// No description provided for @editorModelMap.
+  ///
+  /// In en, this message translates to:
+  /// **'Model mapping'**
+  String get editorModelMap;
+
+  /// No description provided for @editorModelMapHint.
+  ///
+  /// In en, this message translates to:
+  /// **'The model the agent asks for unless told otherwise.'**
+  String get editorModelMapHint;
+
+  /// No description provided for @editorModelMapHintAnthropic.
+  ///
+  /// In en, this message translates to:
+  /// **'Which model each of Claude Code\'s slots asks for; an empty slot uses the main model.'**
+  String get editorModelMapHintAnthropic;
+
+  /// No description provided for @editorSlotMain.
+  ///
+  /// In en, this message translates to:
+  /// **'Main model'**
+  String get editorSlotMain;
+
+  /// No description provided for @editorSlotDefault.
+  ///
+  /// In en, this message translates to:
+  /// **'Default model'**
+  String get editorSlotDefault;
+
+  /// No description provided for @editorSlotHaiku.
+  ///
+  /// In en, this message translates to:
+  /// **'Haiku (background)'**
+  String get editorSlotHaiku;
+
+  /// No description provided for @editorSlotSubagent.
+  ///
+  /// In en, this message translates to:
+  /// **'Subagent'**
+  String get editorSlotSubagent;
+
+  /// No description provided for @editorSameAsMain.
+  ///
+  /// In en, this message translates to:
+  /// **'Same as main'**
+  String get editorSameAsMain;
+
+  /// No description provided for @editorPickModel.
+  ///
+  /// In en, this message translates to:
+  /// **'Pick from the list'**
+  String get editorPickModel;
+
+  /// No description provided for @editorExtraEnv.
+  ///
+  /// In en, this message translates to:
+  /// **'Extra environment variables'**
+  String get editorExtraEnv;
+
+  /// No description provided for @editorExtraEnvHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Set for Claude Code only. The endpoint and key are the route\'s own and can\'t be overridden here.'**
+  String get editorExtraEnvHint;
+
+  /// No description provided for @editorExtraEnvField.
+  ///
+  /// In en, this message translates to:
+  /// **'Variables'**
+  String get editorExtraEnvField;
+
+  /// No description provided for @editorExtraEnvFormat.
+  ///
+  /// In en, this message translates to:
+  /// **'KEY=VALUE, one per line'**
+  String get editorExtraEnvFormat;
+
+  /// No description provided for @editorEnvLine.
+  ///
+  /// In en, this message translates to:
+  /// **'Not KEY=VALUE: {line}'**
+  String editorEnvLine(String line);
+
+  /// No description provided for @editorEnvBadName.
+  ///
+  /// In en, this message translates to:
+  /// **'{name} isn\'t a variable name: capital letters, digits and underscores, starting with a letter'**
+  String editorEnvBadName(String name);
+
+  /// No description provided for @editorEnvReserved.
+  ///
+  /// In en, this message translates to:
+  /// **'{name} is set by the route itself and can\'t be overridden here'**
+  String editorEnvReserved(String name);
+
+  /// No description provided for @editorAdopt.
+  ///
+  /// In en, this message translates to:
+  /// **'Take in an older endpoint'**
+  String get editorAdopt;
+
+  /// No description provided for @editorAdopted.
+  ///
+  /// In en, this message translates to:
+  /// **'Takes in the older endpoint “{name}”'**
+  String editorAdopted(String name);
+
+  /// No description provided for @editorAdoptUndo.
+  ///
+  /// In en, this message translates to:
+  /// **'Don\'t take it in'**
+  String get editorAdoptUndo;
+
+  /// No description provided for @editorAdoptHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Pick an older endpoint and the protocol it speaks: it becomes this account\'s endpoint for that protocol, its key with it.'**
+  String get editorAdoptHint;
+
+  /// No description provided for @editorAdoptProtocol.
+  ///
+  /// In en, this message translates to:
+  /// **'The protocol it speaks'**
+  String get editorAdoptProtocol;
+
+  /// No description provided for @editorAdoptAction.
+  ///
+  /// In en, this message translates to:
+  /// **'Take it in'**
+  String get editorAdoptAction;
+
+  /// No description provided for @editorLegacyTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'An older endpoint'**
+  String get editorLegacyTitle;
+
+  /// No description provided for @editorLegacyBody.
+  ///
+  /// In en, this message translates to:
+  /// **'It was made before accounts and names no protocol. Turn on the one it speaks: saving makes it an account.'**
+  String get editorLegacyBody;
+
+  /// No description provided for @editorConflictTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Changed elsewhere'**
+  String get editorConflictTitle;
+
+  /// No description provided for @editorConflictBody.
+  ///
+  /// In en, this message translates to:
+  /// **'The computer or another phone changed this account while you were editing. Reloading discards your changes here.'**
+  String get editorConflictBody;
+
+  /// No description provided for @editorReload.
+  ///
+  /// In en, this message translates to:
+  /// **'Reload'**
+  String get editorReload;
+
+  /// No description provided for @editorReloadFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Couldn\'t read it again: {error}'**
+  String editorReloadFailed(String error);
+
+  /// No description provided for @editorDeletedElsewhere.
+  ///
+  /// In en, this message translates to:
+  /// **'This account was deleted elsewhere.'**
+  String get editorDeletedElsewhere;
+
+  /// No description provided for @editorKeyRequired.
+  ///
+  /// In en, this message translates to:
+  /// **'New server address: enter the API key again'**
+  String get editorKeyRequired;
+
+  /// No description provided for @editorKeyRequiredBody.
+  ///
+  /// In en, this message translates to:
+  /// **'The stored key can\'t go to a new address. Enter the key again, or clear the stored one, then save.'**
+  String get editorKeyRequiredBody;
+
+  /// No description provided for @editorFixFields.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{1 field needs fixing} other{{count} fields need fixing}}'**
+  String editorFixFields(int count);
+
+  /// No description provided for @editorStatusConflict.
+  ///
+  /// In en, this message translates to:
+  /// **'Changed elsewhere: reload it at the top'**
+  String get editorStatusConflict;
+
+  /// No description provided for @editorStatusRefused.
+  ///
+  /// In en, this message translates to:
+  /// **'Not saved: the reason is at the top'**
+  String get editorStatusRefused;
+
+  /// No description provided for @editorTooLong.
+  ///
+  /// In en, this message translates to:
+  /// **'At most {limit} characters'**
+  String editorTooLong(int limit);
+
+  /// No description provided for @editorTooMany.
+  ///
+  /// In en, this message translates to:
+  /// **'At most {limit}'**
+  String editorTooMany(int limit);
+
+  /// No description provided for @editorTooManyModels.
+  ///
+  /// In en, this message translates to:
+  /// **'At most {limit} models'**
+  String editorTooManyModels(int limit);
+
+  /// No description provided for @editorTooManyEnv.
+  ///
+  /// In en, this message translates to:
+  /// **'At most {limit} variables'**
+  String editorTooManyEnv(int limit);
+
+  /// No description provided for @editorEmpty.
+  ///
+  /// In en, this message translates to:
+  /// **'Can\'t be blank'**
+  String get editorEmpty;
+
+  /// No description provided for @editorKeyInvalid.
+  ///
+  /// In en, this message translates to:
+  /// **'Printable ASCII only, no spaces'**
+  String get editorKeyInvalid;
+
+  /// No description provided for @editorUrlInvalid.
+  ///
+  /// In en, this message translates to:
+  /// **'No spaces or control characters'**
+  String get editorUrlInvalid;
+
+  /// No description provided for @editorControlChars.
+  ///
+  /// In en, this message translates to:
+  /// **'No control characters'**
+  String get editorControlChars;
+
+  /// No description provided for @editorProblemIn.
+  ///
+  /// In en, this message translates to:
+  /// **'{item}: {problem}'**
+  String editorProblemIn(String item, String problem);
+
+  /// No description provided for @editorDiscardTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Discard your changes?'**
+  String get editorDiscardTitle;
+
+  /// No description provided for @editorDiscardBody.
+  ///
+  /// In en, this message translates to:
+  /// **'What you changed here isn\'t saved.'**
+  String get editorDiscardBody;
+
+  /// No description provided for @editorUnknownProtocol.
+  ///
+  /// In en, this message translates to:
+  /// **'This account speaks a protocol this version of the app doesn\'t know: edit it on the computer, or update the app.'**
+  String get editorUnknownProtocol;
+
+  /// No description provided for @editorProtocolTwice.
+  ///
+  /// In en, this message translates to:
+  /// **'{protocol} is there twice'**
+  String editorProtocolTwice(String protocol);
+
+  /// No description provided for @errProviderUnsupported.
+  ///
+  /// In en, this message translates to:
+  /// **'This computer can\'t take a model on a chosen account. Pick the model again.'**
+  String get errProviderUnsupported;
+
+  /// No description provided for @backendKeyNotLocated.
+  ///
+  /// In en, this message translates to:
+  /// **'The key was created, but isn\'t in the list that came after. Check your keys before creating another.'**
+  String get backendKeyNotLocated;
+
+  /// No description provided for @backendNoKey.
+  ///
+  /// In en, this message translates to:
+  /// **'The server returned no key'**
+  String get backendNoKey;
 }
 
 class _L10nDelegate extends LocalizationsDelegate<L10n> {

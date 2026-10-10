@@ -228,8 +228,8 @@ class _CodeBlock extends StatelessWidget {
             child: Text(language, style: context.text.labelSmall?.mono.copyWith(color: context.colors.onSurfaceVariant)),
           ),
         const Spacer(),
+        // The full 48dp target: a compact one is too small to hit.
         IconButton(
-          visualDensity: VisualDensity.compact,
           iconSize: 18,
           tooltip: MaterialLocalizations.of(context).copyButtonLabel,
           icon: const Icon(Icons.copy_rounded),

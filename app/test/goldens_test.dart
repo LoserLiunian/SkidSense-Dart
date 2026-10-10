@@ -1,5 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:skidsense_app/ui/material.dart';
+import 'package:skidsense_app/ui/screens/account_screen.dart';
 import 'package:skidsense_app/ui/screens/gallery_screen.dart';
 import 'package:skidsense_app/ui/screens/hosts_screen.dart';
 import 'package:skidsense_app/ui/screens/login_screen.dart';
@@ -76,7 +77,58 @@ void main() {
       await settle(tester);
       await expectLater(find.byType(SettingsScreen), matchesGoldenFile(name('settings', style, brightness)));
     }, skip: !goldensSupported);
+
+    testWidgets('account ${style.name} ${brightness.name}', (tester) async {
+      phoneSurface(tester);
+      final services = await signedIn(tester);
+      await tester.pumpWidget(harness(services, const AccountScreen(), style: style, brightness: brightness));
+      await settle(tester);
+      expect(find.text(r'$1,234.56'), findsOneWidget);
+      await expectLater(find.byType(AccountScreen), matchesGoldenFile(name('account', style, brightness)));
+    }, skip: !goldensSupported);
+
+    testWidgets('account, read failed ${style.name} ${brightness.name}', (tester) async {
+      phoneSurface(tester);
+      final services = await signedIn(tester);
+      services.backend.failures['/api/user/self'] = 1;
+      await tester.pumpWidget(harness(services, const AccountScreen(), style: style, brightness: brightness));
+      await settle(tester);
+      expect(find.text('Retry'), findsOneWidget);
+      await expectLater(find.byType(AccountScreen), matchesGoldenFile(name('account_error', style, brightness)));
+    }, skip: !goldensSupported);
   }
+
+  testWidgets('account out of reach', (tester) async {
+    phoneSurface(tester);
+    final services = await signedIn(tester);
+    services.backend.offline = true;
+    await tester.pumpWidget(harness(services, const AccountScreen()));
+    await settle(tester);
+    expect(find.text('Retry'), findsOneWidget);
+    await expectLater(find.byType(AccountScreen), matchesGoldenFile('goldens/account_offline_m3e_light.png'));
+  }, skip: !goldensSupported);
+
+  // On a tablet the figures stay beside their labels: the page grows no
+  // wider than it reads well.
+  testWidgets('account on a tablet', (tester) async {
+    phoneSurface(tester, size: const Size(1280, 800));
+    final services = await signedIn(tester);
+    await tester.pumpWidget(harness(services, const AccountScreen()));
+    await settle(tester);
+    await expectLater(find.byType(AccountScreen), matchesGoldenFile('goldens/account_tablet_m3e_light.png'));
+  }, skip: !goldensSupported);
+
+  testWidgets('account in Traditional Chinese', (tester) async {
+    phoneSurface(tester);
+    final services = await signedIn(tester);
+    await tester.pumpWidget(harness(
+      services,
+      const AccountScreen(),
+      locale: const Locale.fromSubtags(languageCode: 'zh', scriptCode: 'Hant'),
+    ));
+    await settle(tester);
+    await expectLater(find.byType(AccountScreen), matchesGoldenFile('goldens/account_m3e_light_zh_hant.png'));
+  }, skip: !goldensSupported);
 
   testWidgets('hosts in Simplified Chinese', (tester) async {
     phoneSurface(tester);

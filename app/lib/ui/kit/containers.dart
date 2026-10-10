@@ -136,7 +136,9 @@ class StatusBadge extends StatelessWidget {
   }
 }
 
-/// A label and its value, on one line; [mono] for keys and addresses.
+/// A label and its value, on one line; [mono] for keys and addresses. The
+/// labels' column grows with the text; where it would take more than its
+/// share of the width (large text), each label goes over its value instead.
 class KeyValueRow extends StatelessWidget {
   const KeyValueRow(this.label, this.value, {super.key, this.mono = false, this.copyable = false});
 
@@ -149,36 +151,52 @@ class KeyValueRow extends StatelessWidget {
   Widget build(BuildContext context) {
     final body = context.text.bodyMedium;
     final style = mono ? body?.mono.copyWith(fontFeatures: const [FontFeature.tabularFigures()]) : body;
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 2),
-      child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        SizedBox(
-          width: 88,
-          child: Text(label, style: context.text.bodyMedium?.copyWith(color: context.colors.onSurfaceVariant)),
-        ),
-        Expanded(
-          child: copyable
-              ? GestureDetector(
-                  onLongPress: () => Clipboard.setData(ClipboardData(text: value)),
-                  child: SelectableText(value, style: style),
-                )
-              : Text(value, style: style),
-        ),
-      ]),
-    );
+    final name = Text(label, style: body?.copyWith(color: context.colors.onSurfaceVariant));
+    final shown = copyable
+        ? GestureDetector(
+            onLongPress: () => Clipboard.setData(ClipboardData(text: value)),
+            child: SelectableText(value, style: style),
+          )
+        : Text(value, style: style);
+    return LayoutBuilder(builder: (context, constraints) {
+      final column = MediaQuery.textScalerOf(context).scale(88);
+      if (constraints.hasBoundedWidth && column > constraints.maxWidth * 0.4) {
+        return Padding(
+          padding: const EdgeInsets.only(top: 2, bottom: Gap.xs),
+          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [name, shown]),
+        );
+      }
+      return Padding(
+        padding: const EdgeInsets.symmetric(vertical: 2),
+        child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          SizedBox(
+            width: column,
+            // Kept apart from the value when a label fills its column.
+            child: Padding(padding: const EdgeInsetsDirectional.only(end: Gap.sm), child: name),
+          ),
+          Expanded(child: shown),
+        ]),
+      );
+    });
   }
 }
 
 /// Monospaced text in a quiet box — commands, tool input, diffs. Scrolls
 /// sideways rather than wrapping, and caps its height.
 class MonoBlock extends StatelessWidget {
-  const MonoBlock(this.text, {super.key, this.maxHeight = 240, this.spans});
+  const MonoBlock(this.text, {super.key, this.maxHeight = 240, this.spans, this.whole = false});
 
   final String text;
   final double maxHeight;
 
   /// Pre-styled spans in place of [text] (a coloured diff).
   final List<InlineSpan>? spans;
+
+  /// One unbroken string that must be read whole — a key: broken at any
+  /// character to the width, in place of a line scrolled sideways whose end
+  /// does not show. Not selectable then, as the breaks are none of it: a
+  /// copy action goes with it.
+  final bool whole;
 
   @override
   Widget build(BuildContext context) {
@@ -193,18 +211,65 @@ class MonoBlock extends StatelessWidget {
       ),
       child: SingleChildScrollView(
         padding: const EdgeInsets.all(Gap.md),
-        child: SingleChildScrollView(
-          scrollDirection: Axis.horizontal,
-          child: SelectableText.rich(TextSpan(style: style, children: spans ?? [TextSpan(text: text)])),
-        ),
+        child: whole
+            ? LayoutBuilder(
+                builder: (context, constraints) => Text(
+                  _brokenToFit(text, style, MediaQuery.textScalerOf(context), constraints.maxWidth),
+                  style: style,
+                  semanticsLabel: text,
+                ),
+              )
+            : SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                child: SelectableText.rich(TextSpan(style: style, children: spans ?? [TextSpan(text: text)])),
+              ),
       ),
     );
   }
 }
 
+/// [text] with a line break wherever the next character would not fit
+/// [width]: as many on each line as fit, rather than a break only where a
+/// line may break (after `sk-`), which would leave a key's prefix alone on
+/// its line and its last character on another.
+String _brokenToFit(String text, TextStyle? style, TextScaler scaler, double width) {
+  if (!width.isFinite || width <= 0) return text;
+  final painter = TextPainter(textDirection: TextDirection.ltr, textScaler: scaler, maxLines: 1);
+  bool fits(String part) {
+    painter
+      ..text = TextSpan(text: part, style: style)
+      ..layout();
+    return painter.width <= width;
+  }
+
+  final lines = <String>[];
+  for (final paragraph in text.split('\n')) {
+    final glyphs = paragraph.characters.toList();
+    if (glyphs.isEmpty) lines.add('');
+    var start = 0;
+    while (start < glyphs.length) {
+      // The most that fits, and at least one.
+      var low = start + 1;
+      var high = glyphs.length;
+      while (low < high) {
+        final middle = (low + high + 1) ~/ 2;
+        if (fits(glyphs.sublist(start, middle).join())) {
+          low = middle;
+        } else {
+          high = middle - 1;
+        }
+      }
+      lines.add(glyphs.sublist(start, low).join());
+      start = low;
+    }
+  }
+  painter.dispose();
+  return lines.join('\n');
+}
+
 /// A raised group of content: a card in the theme's shape.
 class AppCard extends StatelessWidget {
-  const AppCard({super.key, required this.child, this.onTap, this.padding = const EdgeInsets.all(Gap.lg), this.tone});
+  const AppCard({super.key, required this.child, this.onTap, this.padding = const EdgeInsets.all(Gap.lg), this.tone, this.selected});
 
   final Widget child;
   final VoidCallback? onTap;
@@ -213,12 +278,57 @@ class AppCard extends StatelessWidget {
   /// A container colour for a card that must stand out (an approval).
   final Color? tone;
 
+  /// One card of a few to pick from (a route): the picked one in the
+  /// secondary container, ringed in the primary colour (as the appearance
+  /// settings' style cards). M3 outlines the others, as its lists are
+  /// outlined; M3 Expressive's stay filled, as its lists are. Null for a
+  /// card that is no choice.
+  final bool? selected;
+
   @override
   Widget build(BuildContext context) {
     final content = Padding(padding: padding, child: child);
+    final colors = context.colors;
+    final picked = selected;
+    final ring = switch (picked) {
+      true => BorderSide(color: colors.primary, width: 2),
+      false when !context.design.expressive => BorderSide(color: colors.outlineVariant),
+      _ => null,
+    };
     return Card(
-      color: tone,
-      child: onTap == null ? content : InkWell(onTap: onTap, child: content),
+      color: picked == true ? colors.secondaryContainer : tone,
+      shape: ring == null ? null : RoundedRectangleBorder(borderRadius: BorderRadius.circular(context.design.shapes.card), side: ring),
+      child: Semantics(
+        selected: picked,
+        inMutuallyExclusiveGroup: picked != null,
+        child: onTap == null ? content : InkWell(onTap: onTap, child: content),
+      ),
+    );
+  }
+}
+
+/// A surface that floats over the page beside what it belongs to — the
+/// suggestions over a composer: a menu's raised surface (M3's extra-small
+/// corners, M3 Expressive's large ones), its content clipped to it.
+class FloatingPanel extends StatelessWidget {
+  const FloatingPanel({super.key, required this.child});
+
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.colors;
+    final design = context.design;
+    return Material(
+      color: colors.surfaceContainerHigh,
+      elevation: 3,
+      shadowColor: colors.shadow,
+      surfaceTintColor: Colors.transparent,
+      clipBehavior: Clip.antiAlias,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(design.expressive ? design.shapes.large : design.shapes.extraSmall),
+      ),
+      child: child,
     );
   }
 }

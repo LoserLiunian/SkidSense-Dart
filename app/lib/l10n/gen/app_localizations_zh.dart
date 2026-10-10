@@ -576,12 +576,97 @@ class L10nZh extends L10n {
   String get modelDefault => '默认';
 
   @override
-  String modelAccount(String account) {
-    return '模型（$account）';
+  String get noModels => '没有可选的模型列表';
+
+  @override
+  String modelDefaultNamed(String model) {
+    return '默认（$model）';
   }
 
   @override
-  String get noModels => '没有可选的模型列表';
+  String get composerModelsLoading => '正在读取模型…';
+
+  @override
+  String get composerRouteCloud => '云端：经由你的第一方账号';
+
+  @override
+  String composerRouteAccount(String account) {
+    return '本地账号：$account';
+  }
+
+  @override
+  String get composerRouteOfficial => '本地：Anthropic 官方订阅（强制）';
+
+  @override
+  String get composerRouteCli => '本地：使用代理自己的配置';
+
+  @override
+  String get composerAccount => '账号';
+
+  @override
+  String composerAccountHint(String agent) {
+    return '在电脑上设置：$agent 的所有对话从下一个回合起都使用它。';
+  }
+
+  @override
+  String get composerModelsCloud => '云端模型';
+
+  @override
+  String composerModelsAccount(String account) {
+    return '$account 的模型';
+  }
+
+  @override
+  String get composerModelsCli => 'CLI 自身的模型';
+
+  @override
+  String get composerModelsOtherAccounts => '其他账号（仅本次对话）';
+
+  @override
+  String get composerModelsOtherEndpoints => '其他端点（仅本次对话）';
+
+  @override
+  String get composerModelsOtherHint => '只有这个对话使用它，电脑上设置的账号不变。';
+
+  @override
+  String get composerCloudEmptyTitle => '云端还没有模型';
+
+  @override
+  String get composerCloudEmptyBody => '云端模式只提供从云端 Key 分配给这个代理的模型。';
+
+  @override
+  String get composerOpenModels => '到「模型」分配';
+
+  @override
+  String get slashTitle => '命令';
+
+  @override
+  String slashCount(int count) {
+    return '$count 个命令';
+  }
+
+  @override
+  String get slashLoading => '正在读取命令…';
+
+  @override
+  String get slashSourceBuiltin => '内置';
+
+  @override
+  String get slashSourceCommand => '命令';
+
+  @override
+  String get slashSourceSkill => '技能';
+
+  @override
+  String get slashScopeWorkspace => '本工作区';
+
+  @override
+  String get slashScopeGlobal => '全局';
+
+  @override
+  String slashAliases(String names) {
+    return '别名 $names';
+  }
 
   @override
   String get effort => '思考强度';
@@ -1027,6 +1112,56 @@ class L10nZh extends L10n {
   String get signOutBody => '配对记录会留在这台手机上，再次登录后恢复。';
 
   @override
+  String get accountSignedIn => '已登录';
+
+  @override
+  String get accountUserId => '用户 ID';
+
+  @override
+  String get accountLoading => '正在读取账号…';
+
+  @override
+  String get accountLoadFailed => '无法读取账号信息';
+
+  @override
+  String get accountGroupsLoadFailed => '无法读取分组';
+
+  @override
+  String get accountOffline => '连不上服务器';
+
+  @override
+  String get accountOfflineBody => '请检查这台手机的网络连接，然后重试。';
+
+  @override
+  String get accountQuota => '余额与用量';
+
+  @override
+  String get accountQuotaHint => '以美元（USD）计';
+
+  @override
+  String get accountBalance => '余额';
+
+  @override
+  String get accountUsed => '已用额度';
+
+  @override
+  String get accountGroups => '分组';
+
+  @override
+  String get accountGroupsHint => '每次调用按模型价格乘以分组倍率计费。你的 Key 可以使用这里的任一分组。';
+
+  @override
+  String get accountGroupYours => '你的分组';
+
+  @override
+  String accountGroupRatio(String ratio) {
+    return '倍率 $ratio';
+  }
+
+  @override
+  String get groupRatioAuto => '自动';
+
+  @override
   String get security => '安全';
 
   @override
@@ -1142,6 +1277,17 @@ class L10nZh extends L10n {
   String get terminalScopeNote => '终端权限默认不授予：终端里的 CLI 会自己回答权限提示。';
 
   @override
+  String get settingsScopeNote =>
+      '模型与账号权限默认不授予，只能在电脑上打开：它能把代理指向任意服务器、改附加环境变量，风险等同终端。';
+
+  @override
+  String get settingsScopeWarning =>
+      '这台手机可以改模型与账号：能把代理指向任意服务器、改附加环境变量，足以让电脑运行任意程序，风险等同终端。';
+
+  @override
+  String get settingsScopeLocked => '风险等同终端：足以让电脑运行任意程序。只能在电脑上打开，这里只能关闭。';
+
+  @override
   String get thisDevice => '这台手机';
 
   @override
@@ -1219,6 +1365,9 @@ class L10nZh extends L10n {
 
   @override
   String get scopeTerminal => '终端';
+
+  @override
+  String get scopeSettings => '模型与账号';
 
   @override
   String get lockedTitle => 'SkidSense 已锁定';
@@ -1551,6 +1700,846 @@ class L10nZh extends L10n {
 
   @override
   String get pairCodeBadKey => '配对码里的电脑公钥无效';
+
+  @override
+  String get tabModels => '模型';
+
+  @override
+  String get modelsTitle => '模型';
+
+  @override
+  String get modelsReadOnlyTitle => '只读';
+
+  @override
+  String get modelsReadOnlyBody => '要在这台手机上修改模型与账号，请在电脑的「远程访问」里为它打开「模型与账号」权限。';
+
+  @override
+  String get modelsReadOnlyUnsupported => '这台电脑使用的服务器还不支持从手机修改模型与账号，这里只能查看。';
+
+  @override
+  String get modelsReadOnlyOldComputer =>
+      '这台电脑上的 SkidSense 还不支持从手机修改这些设置：在电脑上更新后即可在这里修改。';
+
+  @override
+  String get modelsRoute => '线路';
+
+  @override
+  String get modelsRouteHint => '代理的请求走哪条线路。切换会影响这台电脑上的所有对话。';
+
+  @override
+  String get modelsLocalMode => '本地';
+
+  @override
+  String get modelsLocalModeHint => '使用本机上各代理自己的账号与订阅，不经由第一方服务。';
+
+  @override
+  String get modelsCloudMode => '云端';
+
+  @override
+  String get modelsCloudModeHint => '所有代理经由你的第一方账号，只用你在 API Key 里分配的模型。';
+
+  @override
+  String get modelsSwitch => '切换';
+
+  @override
+  String get modelsSwitchCloudTitle => '切换到云端？';
+
+  @override
+  String get modelsSwitchCloudBody =>
+      '这会影响这台电脑上的所有对话：从下一个回合起，所有代理都经由你的第一方账号，只用分配给它的模型。';
+
+  @override
+  String get modelsSwitchLocalTitle => '切换回本地？';
+
+  @override
+  String get modelsSwitchLocalBody =>
+      '这会影响这台电脑上的所有对话：从下一个回合起，每个代理都用「本地账号」里为它选的账号。';
+
+  @override
+  String get modelsSwitchedCloud => '已切到云端';
+
+  @override
+  String get modelsSwitchedLocal => '已切回本地';
+
+  @override
+  String get modelsSwitchRefused => '电脑没有切换';
+
+  @override
+  String get modelsLocal => '本地账号';
+
+  @override
+  String get modelsLocalHint => '本地模式下每个代理用哪个账号。只在电脑启动它时注入，不修改 CLI 自己的配置文件。';
+
+  @override
+  String get modelsLocalCloudNote => '现在是云端模式，走第一方账号；这里的选择切回本地模式后生效。';
+
+  @override
+  String get modelsLoading => '正在读取电脑的模型与账号…';
+
+  @override
+  String get modelsNoHarnesses => '这台电脑上没有可以选择账号的代理。';
+
+  @override
+  String get modelsNotInstalled => '未安装';
+
+  @override
+  String get modelsNotDriven => '暂未接入';
+
+  @override
+  String get modelsChoiceCli => '跟随 CLI 自身配置';
+
+  @override
+  String get modelsChoiceOfficial => '官方订阅（强制）';
+
+  @override
+  String get modelsChoiceGone => '账号已删除';
+
+  @override
+  String get modelsRouteCli => '由 CLI 自己的配置决定（例如 cc-switch 写入的配置文件）';
+
+  @override
+  String get modelsRouteOfficial =>
+      '强制走 Anthropic 官方订阅登录，压过 settings.json 里的第三方端点';
+
+  @override
+  String get modelsRouteModelByCli => '由 CLI 决定模型';
+
+  @override
+  String get modelsNoKeyStored => '未存 Key';
+
+  @override
+  String modelsChoiceTitle(String agent) {
+    return '$agent 的账号';
+  }
+
+  @override
+  String modelsChoiceHint(String dialect) {
+    return '可选用 $dialect 协议的账号';
+  }
+
+  @override
+  String modelsChoiceNone(String dialect) {
+    return '还没有 $dialect 协议的账号。';
+  }
+
+  @override
+  String get modelsAccounts => '账号';
+
+  @override
+  String get modelsAccountsHint =>
+      '从预设添加 DeepSeek、智谱、Kimi、OpenRouter 等，或填自己的中转站。Key 存在电脑的系统钥匙串里。';
+
+  @override
+  String get modelsAccountsHintReadOnly => '电脑上的服务商账号。Key 存在电脑的系统钥匙串里。';
+
+  @override
+  String get modelsNoAccounts => '还没有账号。添加一个：选个预设、填 Key 就能用。';
+
+  @override
+  String get modelsAddAccount => '添加账号';
+
+  @override
+  String get modelsLegacy => '旧版端点';
+
+  @override
+  String get modelsLegacyHint => '选择协议后可设为账号';
+
+  @override
+  String modelsPresetTag(String preset) {
+    return '$preset 预设';
+  }
+
+  @override
+  String get modelsKeyStored => '已存 Key';
+
+  @override
+  String get modelsKeyMissing => '没有 Key';
+
+  @override
+  String modelsDialectModels(String dialect, int count) {
+    return '$dialect（$count 个模型）';
+  }
+
+  @override
+  String modelsDeleteAccountTitle(String name) {
+    return '删除账号「$name」？';
+  }
+
+  @override
+  String get modelsDeleteAccountBody =>
+      '它的 Key 会一并从钥匙串删除；正在用它的代理会回到「跟随 CLI 自身配置」。';
+
+  @override
+  String modelsAccountDeleted(String name) {
+    return '已删除「$name」';
+  }
+
+  @override
+  String get modelsDeleteConflict => '这个账号已在别处修改，已重新读取。确认后如仍要删除，请再操作一次。';
+
+  @override
+  String get modelsCloud => '云端 API Key';
+
+  @override
+  String get modelsCloudHint =>
+      '云端模式靠它们：选一把 Key「分配模型」，把它能用的模型分给各个代理。用这台手机自己的登录管理。';
+
+  @override
+  String get keysLoading => '正在读取 Key…';
+
+  @override
+  String get keysEmpty => '还没有 Key，新建一个才能用云端模式。';
+
+  @override
+  String get keyUnnamed => '未命名';
+
+  @override
+  String get assignUnnamedKey => '第一方 Key';
+
+  @override
+  String get keyUnlimited => '不限额度';
+
+  @override
+  String keyRemaining(String amount) {
+    return '剩余 $amount';
+  }
+
+  @override
+  String keyGroupNamed(String group) {
+    return '分组 $group';
+  }
+
+  @override
+  String get keyGroupDefault => '跟随账号默认';
+
+  @override
+  String get keyDisabled => '已禁用';
+
+  @override
+  String get keyExpired => '已过期';
+
+  @override
+  String get keyExhausted => '额度用完';
+
+  @override
+  String get keyAssign => '分配模型';
+
+  @override
+  String get keyReveal => '显示完整 Key';
+
+  @override
+  String get keyCreate => '新建 Key';
+
+  @override
+  String get keyCreateTitle => '新建 API Key';
+
+  @override
+  String get keyCreateHint => '用这台手机的登录在你的账号里新建，不经过电脑。';
+
+  @override
+  String get keyName => '名称';
+
+  @override
+  String get keyNameHint => '例如 我的笔记本';
+
+  @override
+  String get keyNameRequired => '给这个 Key 起个名字';
+
+  @override
+  String keyNameTooLong(int letters, int chinese) {
+    return '名称太长：最多 $letters 个英文字母或 $chinese 个汉字';
+  }
+
+  @override
+  String get keyGroup => '分组';
+
+  @override
+  String get keyGroupsLoading => '正在读取分组…';
+
+  @override
+  String get keyUnlimitedHint => '从账号余额扣费，这把 Key 自己不设上限';
+
+  @override
+  String get keyQuota => '额度（美元）';
+
+  @override
+  String get keyQuotaInvalid => '填一个大于 0 的金额';
+
+  @override
+  String get keyExpiry => '有效期';
+
+  @override
+  String get keyExpiryNever => '永不过期';
+
+  @override
+  String keyExpiryDays(int days) {
+    return '$days 天';
+  }
+
+  @override
+  String get keyCreatedTitle => 'Key 已新建';
+
+  @override
+  String get keyShownOnce => '这是完整 Key，只显示这一次。';
+
+  @override
+  String keyRevealTitle(String name) {
+    return 'Key「$name」';
+  }
+
+  @override
+  String get keyRevealHint => '妥善保管：拿到它的人就能用你的额度。';
+
+  @override
+  String get keyRevealReason => '解锁以显示完整 Key';
+
+  @override
+  String keyDeleteTitle(String name) {
+    return '删除 Key「$name」？';
+  }
+
+  @override
+  String get keyDeleteBody => '用它的地方都会失效，包括用它做的云端分配。删除后无法恢复。';
+
+  @override
+  String get modelsAssigned => '已分配给代理';
+
+  @override
+  String get modelsAssignedHint => '云端模式下各代理走的分配。';
+
+  @override
+  String get modelsNoModelsAssigned => '未指定模型';
+
+  @override
+  String get modelsUnassign => '取消分配';
+
+  @override
+  String modelsUnassignTitle(String name) {
+    return '取消分配「$name」？';
+  }
+
+  @override
+  String get modelsUnassignBody => '云端模式下这个代理就不能再用这些模型；Key 本身保留。';
+
+  @override
+  String modelsUnassigned(String name) {
+    return '已取消分配「$name」';
+  }
+
+  @override
+  String get assignTitle => '分配模型';
+
+  @override
+  String assignHint(String key) {
+    return '勾选模型，并选择分配给哪个代理；云端模式就用这些分配。每项显示为「代理 · $key」。';
+  }
+
+  @override
+  String get assignTo => '当前分配给';
+
+  @override
+  String get assignToHint => '之后勾选的模型会归到这个代理；换一个再勾即可分给多个。';
+
+  @override
+  String get assignToOnlyHint => '之后勾选的模型会归到这个代理；这台电脑上只有这一个代理。';
+
+  @override
+  String get assignAgentsLoading => '正在读取电脑上的代理…';
+
+  @override
+  String get assignAgentsFailed => '无法读取电脑上的代理';
+
+  @override
+  String get assignNoAgents => '这台电脑上没有已安装并已接入的代理。';
+
+  @override
+  String get assignSearch => '搜索模型';
+
+  @override
+  String get assignLoading => '正在获取这把 Key 的模型列表…';
+
+  @override
+  String get assignNoModels => '这把 Key 没有返回任何模型。';
+
+  @override
+  String assignGoesTo(String agents) {
+    return '分配给 $agents';
+  }
+
+  @override
+  String assignSummary(String agent, int count, int places) {
+    return '$agent：已勾选 $count 个模型 · 共 $places 处分配';
+  }
+
+  @override
+  String get assignConfirm => '确认';
+
+  @override
+  String get assignNoneSelected => '至少勾选一个模型';
+
+  @override
+  String assignTooMany(int limit) {
+    return '每个代理一次最多分配 $limit 个模型';
+  }
+
+  @override
+  String assignPartial(String made, String error) {
+    return '只完成了一部分。已建好：$made。之后失败：$error';
+  }
+
+  @override
+  String assignDone(int count) {
+    return '已为 $count 个代理配好';
+  }
+
+  @override
+  String get ctxTitle => '上下文与自动压缩';
+
+  @override
+  String get ctxEntry => '每个模型的压缩阈值';
+
+  @override
+  String get ctxEntryHint => '上下文超过你设的大小才自动压缩';
+
+  @override
+  String ctxHint(String min, String max) {
+    return '给每个模型设一个大小（$min–$max）：上下文超过它才自动压缩，不到就不压缩。没设的模型照旧由代理自己决定。窗口是模型能装下的上限。';
+  }
+
+  @override
+  String get ctxLoading => '正在读取模型…';
+
+  @override
+  String get ctxEmpty => '还没有可设置的模型。';
+
+  @override
+  String ctxCliGroup(String agent) {
+    return '$agent 自带';
+  }
+
+  @override
+  String ctxCloudGroup(String agent, String key) {
+    return '$agent · 云端 Key「$key」';
+  }
+
+  @override
+  String get ctxDefaultModel => '默认模型';
+
+  @override
+  String get ctxNoAgents => '还没有能用它的代理。';
+
+  @override
+  String ctxSupportLine(String agents, String support) {
+    return '$agents：$support';
+  }
+
+  @override
+  String get ctxSupportNative => '到阈值时自动压缩';
+
+  @override
+  String get ctxSupportManaged => '在回合之间判断，超过就先压缩再发消息';
+
+  @override
+  String get ctxSupportUnsupported => '不支持设置，由它自己决定';
+
+  @override
+  String ctxWindow(String size, String source) {
+    return '窗口 $size · $source';
+  }
+
+  @override
+  String get ctxSourceCustom => '你设的';
+
+  @override
+  String get ctxSourceDiscovered => '端点报告';
+
+  @override
+  String get ctxSourcePreset => '账号预设';
+
+  @override
+  String get ctxSourceKnown => '型号默认';
+
+  @override
+  String get ctxSourceEstimate => '估计';
+
+  @override
+  String get ctxDefault => '默认';
+
+  @override
+  String ctxSliderLabel(String model) {
+    return '$model 的压缩阈值';
+  }
+
+  @override
+  String ctxCustom(String size) {
+    return '上下文超过 $size 时自动压缩，没超过不压缩。';
+  }
+
+  @override
+  String get ctxDefaultState => '默认：由代理自己决定。';
+
+  @override
+  String ctxOverWindow(String window) {
+    return '比窗口 $window 还大：窗口装满前代理会自己压缩，窗口不对可以改。';
+  }
+
+  @override
+  String get ctxEditWindow => '改窗口大小';
+
+  @override
+  String get ctxResetWindow => '恢复推算的窗口';
+
+  @override
+  String get ctxReset => '恢复默认';
+
+  @override
+  String get ctxWindowField => '窗口，如 200k、1m 或 200000';
+
+  @override
+  String get ctxWindowInvalid => '窗口写成 200k、1m 或 200000 这样的数（1K–100M）';
+
+  @override
+  String get editorAddTitle => '添加账号';
+
+  @override
+  String get editorEditTitle => '编辑账号';
+
+  @override
+  String get editorAdd => '添加';
+
+  @override
+  String editorSaved(String name) {
+    return '已保存「$name」';
+  }
+
+  @override
+  String editorAdded(String name) {
+    return '已添加「$name」，到「本地账号」为代理选用它';
+  }
+
+  @override
+  String get editorPreset => '预设';
+
+  @override
+  String get editorPresetHint => '选一个预设会填好各协议的地址与模型。模型名经常更新，保存前可用「获取模型」刷新。';
+
+  @override
+  String get editorPresetSearch => '搜索供应商';
+
+  @override
+  String get editorPresetsLoading => '正在读取预设…';
+
+  @override
+  String get editorPresetCredit => '部分预设来自 cc-switch，以 MIT 许可使用。';
+
+  @override
+  String get editorPresetLicense => '许可声明';
+
+  @override
+  String get editorPresetCustom => '自定义';
+
+  @override
+  String get editorAccountSection => '账号';
+
+  @override
+  String get editorName => '名称';
+
+  @override
+  String get editorNameHint => '例如 DeepSeek（个人）';
+
+  @override
+  String get editorNameRequired => '给账号起个名字';
+
+  @override
+  String get editorNote => '备注';
+
+  @override
+  String get editorNoteHint => '谁的 Key、用途、计费方式…';
+
+  @override
+  String get editorApiKey => 'API Key';
+
+  @override
+  String get editorKeyShared => '所有协议共用，存进电脑的系统钥匙串，之后不再显示。';
+
+  @override
+  String get editorKeyKept => '所有协议共用。已存 Key，留空表示不修改。';
+
+  @override
+  String get editorKeyWillClear => '保存时会清除已存的 Key。';
+
+  @override
+  String get editorClearKey => '清除已存的 Key';
+
+  @override
+  String get editorClearKeyHint => '给不需要 Key 的端点用';
+
+  @override
+  String get editorProtocols => '协议端点';
+
+  @override
+  String get editorProtocolsHint => '一个供应商一个账号：按它支持的协议分别填端点，共用一把 Key。';
+
+  @override
+  String get editorNoProtocol => '至少启用一个协议端点';
+
+  @override
+  String editorDialectFor(String agents) {
+    return '给 $agents 用';
+  }
+
+  @override
+  String get editorBaseUrl => 'Base URL';
+
+  @override
+  String get editorUrlRequired => '请填写 Base URL';
+
+  @override
+  String get editorUrlNotAddress => '不是有效的地址，例如 https://api.example.com/v1';
+
+  @override
+  String get editorUrlNotHttp => '必须以 http:// 或 https:// 开头';
+
+  @override
+  String get editorModels => '模型';
+
+  @override
+  String get editorModelsHint => '「获取模型」直接向端点获取它的模型列表。';
+
+  @override
+  String get editorFetch => '获取模型';
+
+  @override
+  String get editorModelList => '模型 ID';
+
+  @override
+  String get editorModelsHelper => '每行一个，或用逗号分隔';
+
+  @override
+  String get editorCodexNeedsModel => 'Codex 用的这个端点至少要有一个模型：填入模型 ID，或设定默认模型';
+
+  @override
+  String get editorFetching => '正在向端点获取模型列表…';
+
+  @override
+  String get editorFetchFailed => '没能获取模型';
+
+  @override
+  String editorFetched(int count) {
+    return '获取到 $count 个模型，已填入列表。';
+  }
+
+  @override
+  String editorFetchedSome(int count, int kept) {
+    return '获取到 $count 个模型，已填入前 $kept 个（每个协议最多 $kept 个）。';
+  }
+
+  @override
+  String get editorFetchNeedsUrl => '先填 Base URL';
+
+  @override
+  String get editorFetchNoQuery => '地址里不能有 ? 或 #：模型列表的路径要接在它后面';
+
+  @override
+  String editorFetchRejected(int status) {
+    return '密钥被拒绝（$status），检查这个端点的 Key';
+  }
+
+  @override
+  String editorFetchHttp(int status) {
+    return '端点回应 HTTP $status';
+  }
+
+  @override
+  String get editorFetchTimeout => '端点 20 秒内没有回应';
+
+  @override
+  String get editorFetchNetwork => '连不上这个地址';
+
+  @override
+  String get editorFetchNotJson => '端点的回应不是 JSON';
+
+  @override
+  String get editorFetchEmpty => '端点没有列出任何模型';
+
+  @override
+  String get editorFetchTooLarge => '端点的回应太大（超过 8 MiB）';
+
+  @override
+  String get editorModelMap => '模型对应';
+
+  @override
+  String get editorModelMapHint => '代理默认用哪个模型。';
+
+  @override
+  String get editorModelMapHintAnthropic => 'Claude Code 的各个槽位用哪个模型；空着的同主模型。';
+
+  @override
+  String get editorSlotMain => '主模型';
+
+  @override
+  String get editorSlotDefault => '默认模型';
+
+  @override
+  String get editorSlotHaiku => 'Haiku（后台）';
+
+  @override
+  String get editorSlotSubagent => '子代理';
+
+  @override
+  String get editorSameAsMain => '同主模型';
+
+  @override
+  String get editorPickModel => '从列表选择';
+
+  @override
+  String get editorExtraEnv => '附加环境变量';
+
+  @override
+  String get editorExtraEnvHint =>
+      '只注入 Claude Code。端点、Key 这类变量由路由本身管理，不能在这里覆盖。';
+
+  @override
+  String get editorExtraEnvField => '变量';
+
+  @override
+  String get editorExtraEnvFormat => '每行一个 KEY=VALUE';
+
+  @override
+  String editorEnvLine(String line) {
+    return '不是 KEY=VALUE：$line';
+  }
+
+  @override
+  String editorEnvBadName(String name) {
+    return '「$name」不是合法的环境变量名（大写字母开头，只能有大写字母、数字、下划线）';
+  }
+
+  @override
+  String editorEnvReserved(String name) {
+    return '「$name」由路由本身管理，不能在账号里覆盖';
+  }
+
+  @override
+  String get editorAdopt => '并入旧版端点';
+
+  @override
+  String editorAdopted(String name) {
+    return '并入旧版端点「$name」';
+  }
+
+  @override
+  String get editorAdoptUndo => '不并入';
+
+  @override
+  String get editorAdoptHint => '选一个旧版端点和它用的协议：它会成为这个账号在该协议的端点，Key 一起带过来。';
+
+  @override
+  String get editorAdoptProtocol => '它用的协议';
+
+  @override
+  String get editorAdoptAction => '并入';
+
+  @override
+  String get editorLegacyTitle => '旧版端点';
+
+  @override
+  String get editorLegacyBody => '它是在账号功能之前建的，没有说明协议。打开它用的协议，保存后就成为账号。';
+
+  @override
+  String get editorConflictTitle => '在别处被修改了';
+
+  @override
+  String get editorConflictBody => '你编辑时，电脑或另一台设备改了这个账号。重新载入会放弃这里的修改。';
+
+  @override
+  String get editorReload => '重新载入';
+
+  @override
+  String editorReloadFailed(String error) {
+    return '重新读取失败：$error';
+  }
+
+  @override
+  String get editorDeletedElsewhere => '这个账号已在别处删除。';
+
+  @override
+  String get editorKeyRequired => '换了服务器地址，需要重新填 API Key';
+
+  @override
+  String get editorKeyRequiredBody =>
+      '已存的 Key 不能带去新的地址。重新填 API Key，或清除已存的 Key，再保存。';
+
+  @override
+  String editorFixFields(int count) {
+    return '有 $count 处需要修改';
+  }
+
+  @override
+  String get editorStatusConflict => '这个账号在别处被改过：到顶部重新载入';
+
+  @override
+  String get editorStatusRefused => '没有保存：原因见顶部';
+
+  @override
+  String editorTooLong(int limit) {
+    return '最多 $limit 个字符';
+  }
+
+  @override
+  String editorTooMany(int limit) {
+    return '最多 $limit 项';
+  }
+
+  @override
+  String editorTooManyModels(int limit) {
+    return '最多 $limit 个模型';
+  }
+
+  @override
+  String editorTooManyEnv(int limit) {
+    return '最多 $limit 个变量';
+  }
+
+  @override
+  String get editorEmpty => '不能为空';
+
+  @override
+  String get editorKeyInvalid => '只能是可打印的 ASCII 字符，不能有空格';
+
+  @override
+  String get editorUrlInvalid => '不能有空白或控制字符';
+
+  @override
+  String get editorControlChars => '不能含控制字符';
+
+  @override
+  String editorProblemIn(String item, String problem) {
+    return '$item：$problem';
+  }
+
+  @override
+  String get editorDiscardTitle => '放弃修改？';
+
+  @override
+  String get editorDiscardBody => '这里的修改还没有保存。';
+
+  @override
+  String get editorUnknownProtocol => '这个账号用了这个版本的 App 不认识的协议：请在电脑上编辑，或更新 App。';
+
+  @override
+  String editorProtocolTwice(String protocol) {
+    return '$protocol 端点重复了';
+  }
+
+  @override
+  String get errProviderUnsupported => '这台电脑不支持指定账号的模型，请重新选择模型。';
+
+  @override
+  String get backendKeyNotLocated => 'Key 已新建，但之后的列表里找不到它。新建另一把之前，先看看现有的 Key。';
+
+  @override
+  String get backendNoKey => '服务器没有返回 Key';
 }
 
 /// The translations for Chinese, using the Han script (`zh_Hant`).
@@ -2127,12 +3116,97 @@ class L10nZhHant extends L10nZh {
   String get modelDefault => '預設';
 
   @override
-  String modelAccount(String account) {
-    return '模型（$account）';
+  String get noModels => '沒有可選的模型清單';
+
+  @override
+  String modelDefaultNamed(String model) {
+    return '預設（$model）';
   }
 
   @override
-  String get noModels => '沒有可選的模型清單';
+  String get composerModelsLoading => '正在讀取模型…';
+
+  @override
+  String get composerRouteCloud => '雲端：經由你的第一方帳號';
+
+  @override
+  String composerRouteAccount(String account) {
+    return '本機帳號：$account';
+  }
+
+  @override
+  String get composerRouteOfficial => '本機：Anthropic 官方訂閱（強制）';
+
+  @override
+  String get composerRouteCli => '本機：使用代理自己的設定';
+
+  @override
+  String get composerAccount => '帳號';
+
+  @override
+  String composerAccountHint(String agent) {
+    return '在電腦上設定：$agent 的所有對話從下一個回合起都使用它。';
+  }
+
+  @override
+  String get composerModelsCloud => '雲端模型';
+
+  @override
+  String composerModelsAccount(String account) {
+    return '$account 的模型';
+  }
+
+  @override
+  String get composerModelsCli => 'CLI 本身的模型';
+
+  @override
+  String get composerModelsOtherAccounts => '其他帳號（僅本次對話）';
+
+  @override
+  String get composerModelsOtherEndpoints => '其他端點（僅本次對話）';
+
+  @override
+  String get composerModelsOtherHint => '只有這個對話使用它，電腦上設定的帳號不變。';
+
+  @override
+  String get composerCloudEmptyTitle => '雲端還沒有模型';
+
+  @override
+  String get composerCloudEmptyBody => '雲端模式只提供從雲端 Key 分配給這個代理的模型。';
+
+  @override
+  String get composerOpenModels => '到「模型」分配';
+
+  @override
+  String get slashTitle => '指令';
+
+  @override
+  String slashCount(int count) {
+    return '$count 個指令';
+  }
+
+  @override
+  String get slashLoading => '正在讀取指令…';
+
+  @override
+  String get slashSourceBuiltin => '內建';
+
+  @override
+  String get slashSourceCommand => '指令';
+
+  @override
+  String get slashSourceSkill => '技能';
+
+  @override
+  String get slashScopeWorkspace => '本工作區';
+
+  @override
+  String get slashScopeGlobal => '全域';
+
+  @override
+  String slashAliases(String names) {
+    return '別名 $names';
+  }
 
   @override
   String get effort => '思考強度';
@@ -2578,6 +3652,56 @@ class L10nZhHant extends L10nZh {
   String get signOutBody => '配對記錄會保留在這支手機上，再次登入後恢復。';
 
   @override
+  String get accountSignedIn => '已登入';
+
+  @override
+  String get accountUserId => '使用者 ID';
+
+  @override
+  String get accountLoading => '正在讀取帳號…';
+
+  @override
+  String get accountLoadFailed => '無法讀取帳號資訊';
+
+  @override
+  String get accountGroupsLoadFailed => '無法讀取群組';
+
+  @override
+  String get accountOffline => '無法連線到伺服器';
+
+  @override
+  String get accountOfflineBody => '請檢查這支手機的網路連線，然後再試一次。';
+
+  @override
+  String get accountQuota => '餘額與用量';
+
+  @override
+  String get accountQuotaHint => '以美元（USD）計算';
+
+  @override
+  String get accountBalance => '餘額';
+
+  @override
+  String get accountUsed => '已用額度';
+
+  @override
+  String get accountGroups => '群組';
+
+  @override
+  String get accountGroupsHint => '每次呼叫依模型價格乘以群組倍率計費。你的 Key 可以使用這裡的任一群組。';
+
+  @override
+  String get accountGroupYours => '你的群組';
+
+  @override
+  String accountGroupRatio(String ratio) {
+    return '倍率 $ratio';
+  }
+
+  @override
+  String get groupRatioAuto => '自動';
+
+  @override
   String get security => '安全性';
 
   @override
@@ -2693,6 +3817,17 @@ class L10nZhHant extends L10nZh {
   String get terminalScopeNote => '終端機權限預設不授予：終端機中的 CLI 會自己回應權限提示。';
 
   @override
+  String get settingsScopeNote =>
+      '模型與帳號權限預設不授予，只能在電腦上開啟：它能把代理指向任意伺服器、修改額外環境變數，風險等同終端機。';
+
+  @override
+  String get settingsScopeWarning =>
+      '這支手機可以修改模型與帳號：能把代理指向任意伺服器、修改額外環境變數，足以讓電腦執行任意程式，風險等同終端機。';
+
+  @override
+  String get settingsScopeLocked => '風險等同終端機：足以讓電腦執行任意程式。只能在電腦上開啟，這裡只能關閉。';
+
+  @override
   String get thisDevice => '這支手機';
 
   @override
@@ -2770,6 +3905,9 @@ class L10nZhHant extends L10nZh {
 
   @override
   String get scopeTerminal => '終端機';
+
+  @override
+  String get scopeSettings => '模型與帳號';
 
   @override
   String get lockedTitle => 'SkidSense 已鎖定';
@@ -3102,4 +4240,845 @@ class L10nZhHant extends L10nZh {
 
   @override
   String get pairCodeBadKey => '配對碼中的電腦公開金鑰無效';
+
+  @override
+  String get tabModels => '模型';
+
+  @override
+  String get modelsTitle => '模型';
+
+  @override
+  String get modelsReadOnlyTitle => '唯讀';
+
+  @override
+  String get modelsReadOnlyBody => '要在這支手機上修改模型與帳號，請在電腦的「遠端存取」中為它開啟「模型與帳號」權限。';
+
+  @override
+  String get modelsReadOnlyUnsupported => '這台電腦使用的伺服器還不支援從手機修改模型與帳號，這裡只能檢視。';
+
+  @override
+  String get modelsReadOnlyOldComputer =>
+      '這台電腦上的 SkidSense 還不支援從手機修改這些設定：在電腦上更新後就能在這裡修改。';
+
+  @override
+  String get modelsRoute => '線路';
+
+  @override
+  String get modelsRouteHint => '代理的請求走哪條線路。切換會影響這台電腦上的所有對話。';
+
+  @override
+  String get modelsLocalMode => '本機';
+
+  @override
+  String get modelsLocalModeHint => '使用本機上各代理自己的帳號與訂閱，不經過第一方服務。';
+
+  @override
+  String get modelsCloudMode => '雲端';
+
+  @override
+  String get modelsCloudModeHint => '所有代理都經過你的第一方帳號，只使用你在 API Key 中分配的模型。';
+
+  @override
+  String get modelsSwitch => '切換';
+
+  @override
+  String get modelsSwitchCloudTitle => '切換到雲端？';
+
+  @override
+  String get modelsSwitchCloudBody =>
+      '這會影響這台電腦上的所有對話：從下一個回合起，所有代理都經過你的第一方帳號，只使用分配給它的模型。';
+
+  @override
+  String get modelsSwitchLocalTitle => '切換回本機？';
+
+  @override
+  String get modelsSwitchLocalBody =>
+      '這會影響這台電腦上的所有對話：從下一個回合起，每個代理都使用「本機帳號」中為它選的帳號。';
+
+  @override
+  String get modelsSwitchedCloud => '已切換到雲端';
+
+  @override
+  String get modelsSwitchedLocal => '已切換回本機';
+
+  @override
+  String get modelsSwitchRefused => '電腦沒有切換';
+
+  @override
+  String get modelsLocal => '本機帳號';
+
+  @override
+  String get modelsLocalHint => '本機模式下每個代理使用哪個帳號。只在電腦啟動它時注入，不會修改 CLI 自己的設定檔。';
+
+  @override
+  String get modelsLocalCloudNote => '目前是雲端模式，使用第一方帳號；這裡的選擇切換回本機模式後生效。';
+
+  @override
+  String get modelsLoading => '正在讀取電腦的模型與帳號…';
+
+  @override
+  String get modelsNoHarnesses => '這台電腦上沒有可以選擇帳號的代理。';
+
+  @override
+  String get modelsNotInstalled => '未安裝';
+
+  @override
+  String get modelsNotDriven => '尚未支援';
+
+  @override
+  String get modelsChoiceCli => '依照 CLI 自己的設定';
+
+  @override
+  String get modelsChoiceOfficial => '官方訂閱（強制）';
+
+  @override
+  String get modelsChoiceGone => '帳號已刪除';
+
+  @override
+  String get modelsRouteCli => '由 CLI 自己的設定決定（例如 cc-switch 寫入的設定檔）';
+
+  @override
+  String get modelsRouteOfficial =>
+      '強制使用 Anthropic 官方訂閱登入，蓋過 settings.json 中的第三方端點';
+
+  @override
+  String get modelsRouteModelByCli => '由 CLI 決定模型';
+
+  @override
+  String get modelsNoKeyStored => '未儲存 Key';
+
+  @override
+  String modelsChoiceTitle(String agent) {
+    return '$agent 的帳號';
+  }
+
+  @override
+  String modelsChoiceHint(String dialect) {
+    return '可選用 $dialect 協定的帳號';
+  }
+
+  @override
+  String modelsChoiceNone(String dialect) {
+    return '還沒有 $dialect 協定的帳號。';
+  }
+
+  @override
+  String get modelsAccounts => '帳號';
+
+  @override
+  String get modelsAccountsHint =>
+      '從預設新增 DeepSeek、智譜、Kimi、OpenRouter 等，或填入自己的轉發站。Key 存在電腦的系統鑰匙圈中。';
+
+  @override
+  String get modelsAccountsHintReadOnly => '電腦上的服務商帳號。Key 存在電腦的系統鑰匙圈中。';
+
+  @override
+  String get modelsNoAccounts => '還沒有帳號。新增一個：選個預設、填入 Key 就能使用。';
+
+  @override
+  String get modelsAddAccount => '新增帳號';
+
+  @override
+  String get modelsLegacy => '舊版端點';
+
+  @override
+  String get modelsLegacyHint => '選擇協定後可設為帳號';
+
+  @override
+  String modelsPresetTag(String preset) {
+    return '$preset 預設';
+  }
+
+  @override
+  String get modelsKeyStored => '已儲存 Key';
+
+  @override
+  String get modelsKeyMissing => '沒有 Key';
+
+  @override
+  String modelsDialectModels(String dialect, int count) {
+    return '$dialect（$count 個模型）';
+  }
+
+  @override
+  String modelsDeleteAccountTitle(String name) {
+    return '刪除帳號「$name」？';
+  }
+
+  @override
+  String get modelsDeleteAccountBody =>
+      '它的 Key 會一併從鑰匙圈刪除；正在使用它的代理會回到「依照 CLI 自己的設定」。';
+
+  @override
+  String modelsAccountDeleted(String name) {
+    return '已刪除「$name」';
+  }
+
+  @override
+  String get modelsDeleteConflict => '這個帳號已在別處修改，已重新讀取。確認後如仍要刪除，請再操作一次。';
+
+  @override
+  String get modelsCloud => '雲端 API Key';
+
+  @override
+  String get modelsCloudHint =>
+      '雲端模式靠它們：選一把 Key「分配模型」，把它能用的模型分給各個代理。使用這支手機自己的登入管理。';
+
+  @override
+  String get keysLoading => '正在讀取 Key…';
+
+  @override
+  String get keysEmpty => '還沒有 Key，建立一把才能使用雲端模式。';
+
+  @override
+  String get keyUnnamed => '未命名';
+
+  @override
+  String get assignUnnamedKey => '第一方 Key';
+
+  @override
+  String get keyUnlimited => '不限額度';
+
+  @override
+  String keyRemaining(String amount) {
+    return '剩餘 $amount';
+  }
+
+  @override
+  String keyGroupNamed(String group) {
+    return '群組 $group';
+  }
+
+  @override
+  String get keyGroupDefault => '依照帳號預設';
+
+  @override
+  String get keyDisabled => '已停用';
+
+  @override
+  String get keyExpired => '已過期';
+
+  @override
+  String get keyExhausted => '額度用完';
+
+  @override
+  String get keyAssign => '分配模型';
+
+  @override
+  String get keyReveal => '顯示完整 Key';
+
+  @override
+  String get keyCreate => '建立 Key';
+
+  @override
+  String get keyCreateTitle => '建立 API Key';
+
+  @override
+  String get keyCreateHint => '使用這支手機的登入在你的帳號中建立，不經過電腦。';
+
+  @override
+  String get keyName => '名稱';
+
+  @override
+  String get keyNameHint => '例如 我的筆電';
+
+  @override
+  String get keyNameRequired => '為這把 Key 取個名字';
+
+  @override
+  String keyNameTooLong(int letters, int chinese) {
+    return '名稱太長：最多 $letters 個英文字母或 $chinese 個中文字';
+  }
+
+  @override
+  String get keyGroup => '群組';
+
+  @override
+  String get keyGroupsLoading => '正在讀取群組…';
+
+  @override
+  String get keyUnlimitedHint => '從帳號餘額扣款，這把 Key 本身不設上限';
+
+  @override
+  String get keyQuota => '額度（美元）';
+
+  @override
+  String get keyQuotaInvalid => '請填入大於 0 的金額';
+
+  @override
+  String get keyExpiry => '有效期限';
+
+  @override
+  String get keyExpiryNever => '永不過期';
+
+  @override
+  String keyExpiryDays(int days) {
+    return '$days 天';
+  }
+
+  @override
+  String get keyCreatedTitle => 'Key 已建立';
+
+  @override
+  String get keyShownOnce => '這是完整的 Key，只顯示這一次。';
+
+  @override
+  String keyRevealTitle(String name) {
+    return 'Key「$name」';
+  }
+
+  @override
+  String get keyRevealHint => '請妥善保管：拿到它的人就能使用你的額度。';
+
+  @override
+  String get keyRevealReason => '解鎖以顯示完整 Key';
+
+  @override
+  String keyDeleteTitle(String name) {
+    return '刪除 Key「$name」？';
+  }
+
+  @override
+  String get keyDeleteBody => '使用它的地方都會失效，包括用它建立的雲端分配。刪除後無法復原。';
+
+  @override
+  String get modelsAssigned => '已分配給代理';
+
+  @override
+  String get modelsAssignedHint => '雲端模式下各代理使用的分配。';
+
+  @override
+  String get modelsNoModelsAssigned => '未指定模型';
+
+  @override
+  String get modelsUnassign => '取消分配';
+
+  @override
+  String modelsUnassignTitle(String name) {
+    return '取消分配「$name」？';
+  }
+
+  @override
+  String get modelsUnassignBody => '雲端模式下這個代理就不能再使用這些模型；Key 本身會保留。';
+
+  @override
+  String modelsUnassigned(String name) {
+    return '已取消分配「$name」';
+  }
+
+  @override
+  String get assignTitle => '分配模型';
+
+  @override
+  String assignHint(String key) {
+    return '勾選模型，並選擇分配給哪個代理；雲端模式就使用這些分配。每項顯示為「代理 · $key」。';
+  }
+
+  @override
+  String get assignTo => '目前分配給';
+
+  @override
+  String get assignToHint => '之後勾選的模型會歸到這個代理；換一個再勾選即可分給多個。';
+
+  @override
+  String get assignToOnlyHint => '之後勾選的模型會歸到這個代理；這台電腦上只有這一個代理。';
+
+  @override
+  String get assignAgentsLoading => '正在讀取電腦上的代理…';
+
+  @override
+  String get assignAgentsFailed => '無法讀取電腦上的代理';
+
+  @override
+  String get assignNoAgents => '這台電腦上沒有已安裝且已支援的代理。';
+
+  @override
+  String get assignSearch => '搜尋模型';
+
+  @override
+  String get assignLoading => '正在取得這把 Key 的模型清單…';
+
+  @override
+  String get assignNoModels => '這把 Key 沒有回傳任何模型。';
+
+  @override
+  String assignGoesTo(String agents) {
+    return '分配給 $agents';
+  }
+
+  @override
+  String assignSummary(String agent, int count, int places) {
+    return '$agent：已勾選 $count 個模型 · 共 $places 處分配';
+  }
+
+  @override
+  String get assignConfirm => '確認';
+
+  @override
+  String get assignNoneSelected => '至少勾選一個模型';
+
+  @override
+  String assignTooMany(int limit) {
+    return '每個代理一次最多分配 $limit 個模型';
+  }
+
+  @override
+  String assignPartial(String made, String error) {
+    return '只完成了一部分。已建立：$made。之後失敗：$error';
+  }
+
+  @override
+  String assignDone(int count) {
+    return '已為 $count 個代理設定好';
+  }
+
+  @override
+  String get ctxTitle => '上下文與自動壓縮';
+
+  @override
+  String get ctxEntry => '每個模型的壓縮門檻';
+
+  @override
+  String get ctxEntryHint => '上下文超過你設定的大小才自動壓縮';
+
+  @override
+  String ctxHint(String min, String max) {
+    return '為每個模型設定一個大小（$min–$max）：上下文超過它才自動壓縮，未超過就不壓縮。沒設定的模型照舊由代理自己決定。視窗是模型能容納的上限。';
+  }
+
+  @override
+  String get ctxLoading => '正在讀取模型…';
+
+  @override
+  String get ctxEmpty => '還沒有可設定的模型。';
+
+  @override
+  String ctxCliGroup(String agent) {
+    return '$agent 內建';
+  }
+
+  @override
+  String ctxCloudGroup(String agent, String key) {
+    return '$agent · 雲端 Key「$key」';
+  }
+
+  @override
+  String get ctxDefaultModel => '預設模型';
+
+  @override
+  String get ctxNoAgents => '還沒有能使用它的代理。';
+
+  @override
+  String ctxSupportLine(String agents, String support) {
+    return '$agents：$support';
+  }
+
+  @override
+  String get ctxSupportNative => '到門檻時自動壓縮';
+
+  @override
+  String get ctxSupportManaged => '在回合之間判斷，超過就先壓縮再傳送訊息';
+
+  @override
+  String get ctxSupportUnsupported => '不支援設定，由它自己決定';
+
+  @override
+  String ctxWindow(String size, String source) {
+    return '視窗 $size · $source';
+  }
+
+  @override
+  String get ctxSourceCustom => '你設定的';
+
+  @override
+  String get ctxSourceDiscovered => '端點回報';
+
+  @override
+  String get ctxSourcePreset => '帳號預設';
+
+  @override
+  String get ctxSourceKnown => '型號預設';
+
+  @override
+  String get ctxSourceEstimate => '估計';
+
+  @override
+  String get ctxDefault => '預設';
+
+  @override
+  String ctxSliderLabel(String model) {
+    return '$model 的壓縮門檻';
+  }
+
+  @override
+  String ctxCustom(String size) {
+    return '上下文超過 $size 時自動壓縮，未超過不壓縮。';
+  }
+
+  @override
+  String get ctxDefaultState => '預設：由代理自己決定。';
+
+  @override
+  String ctxOverWindow(String window) {
+    return '比視窗 $window 還大：視窗裝滿前代理會自己壓縮，視窗不對可以修改。';
+  }
+
+  @override
+  String get ctxEditWindow => '修改視窗大小';
+
+  @override
+  String get ctxResetWindow => '恢復推算的視窗';
+
+  @override
+  String get ctxReset => '恢復預設';
+
+  @override
+  String get ctxWindowField => '視窗，例如 200k、1m 或 200000';
+
+  @override
+  String get ctxWindowInvalid => '視窗請寫成 200k、1m 或 200000 這樣的數字（1K–100M）';
+
+  @override
+  String get editorAddTitle => '新增帳號';
+
+  @override
+  String get editorEditTitle => '編輯帳號';
+
+  @override
+  String get editorAdd => '新增';
+
+  @override
+  String editorSaved(String name) {
+    return '已儲存「$name」';
+  }
+
+  @override
+  String editorAdded(String name) {
+    return '已新增「$name」，到「本機帳號」為代理選用它';
+  }
+
+  @override
+  String get editorPreset => '預設';
+
+  @override
+  String get editorPresetHint => '選一個預設會填好各協定的位址與模型。模型名稱經常更新，儲存前可用「取得模型」更新。';
+
+  @override
+  String get editorPresetSearch => '搜尋供應商';
+
+  @override
+  String get editorPresetsLoading => '正在讀取預設…';
+
+  @override
+  String get editorPresetCredit => '部分預設來自 cc-switch，依 MIT 授權使用。';
+
+  @override
+  String get editorPresetLicense => '授權聲明';
+
+  @override
+  String get editorPresetCustom => '自訂';
+
+  @override
+  String get editorAccountSection => '帳號';
+
+  @override
+  String get editorName => '名稱';
+
+  @override
+  String get editorNameHint => '例如 DeepSeek（個人）';
+
+  @override
+  String get editorNameRequired => '為帳號取個名字';
+
+  @override
+  String get editorNote => '備註';
+
+  @override
+  String get editorNoteHint => '誰的 Key、用途、計費方式…';
+
+  @override
+  String get editorApiKey => 'API Key';
+
+  @override
+  String get editorKeyShared => '所有協定共用，存入電腦的系統鑰匙圈，之後不再顯示。';
+
+  @override
+  String get editorKeyKept => '所有協定共用。已儲存 Key，留空表示不修改。';
+
+  @override
+  String get editorKeyWillClear => '儲存時會清除已儲存的 Key。';
+
+  @override
+  String get editorClearKey => '清除已儲存的 Key';
+
+  @override
+  String get editorClearKeyHint => '給不需要 Key 的端點使用';
+
+  @override
+  String get editorProtocols => '協定端點';
+
+  @override
+  String get editorProtocolsHint => '一個供應商一個帳號：依它支援的協定分別填寫端點，共用一把 Key。';
+
+  @override
+  String get editorNoProtocol => '至少開啟一個協定端點';
+
+  @override
+  String editorDialectFor(String agents) {
+    return '給 $agents 使用';
+  }
+
+  @override
+  String get editorBaseUrl => 'Base URL';
+
+  @override
+  String get editorUrlRequired => '請填寫 Base URL';
+
+  @override
+  String get editorUrlNotAddress => '不是有效的位址，例如 https://api.example.com/v1';
+
+  @override
+  String get editorUrlNotHttp => '必須以 http:// 或 https:// 開頭';
+
+  @override
+  String get editorModels => '模型';
+
+  @override
+  String get editorModelsHint => '「取得模型」直接向端點取得它的模型清單。';
+
+  @override
+  String get editorFetch => '取得模型';
+
+  @override
+  String get editorModelList => '模型 ID';
+
+  @override
+  String get editorModelsHelper => '每行一個，或用逗號分隔';
+
+  @override
+  String get editorCodexNeedsModel => 'Codex 使用的這個端點至少要有一個模型：填入模型 ID，或設定預設模型';
+
+  @override
+  String get editorFetching => '正在向端點取得模型清單…';
+
+  @override
+  String get editorFetchFailed => '無法取得模型';
+
+  @override
+  String editorFetched(int count) {
+    return '取得 $count 個模型，已填入清單。';
+  }
+
+  @override
+  String editorFetchedSome(int count, int kept) {
+    return '取得 $count 個模型，已填入前 $kept 個（每個協定最多 $kept 個）。';
+  }
+
+  @override
+  String get editorFetchNeedsUrl => '請先填寫 Base URL';
+
+  @override
+  String get editorFetchNoQuery => '位址中不能有 ? 或 #：模型清單的路徑要接在它後面';
+
+  @override
+  String editorFetchRejected(int status) {
+    return '金鑰被拒絕（$status），請檢查這個端點的 Key';
+  }
+
+  @override
+  String editorFetchHttp(int status) {
+    return '端點回應 HTTP $status';
+  }
+
+  @override
+  String get editorFetchTimeout => '端點 20 秒內沒有回應';
+
+  @override
+  String get editorFetchNetwork => '連不上這個位址';
+
+  @override
+  String get editorFetchNotJson => '端點的回應不是 JSON';
+
+  @override
+  String get editorFetchEmpty => '端點沒有列出任何模型';
+
+  @override
+  String get editorFetchTooLarge => '端點的回應太大（超過 8 MiB）';
+
+  @override
+  String get editorModelMap => '模型對應';
+
+  @override
+  String get editorModelMapHint => '代理預設使用哪個模型。';
+
+  @override
+  String get editorModelMapHintAnthropic => 'Claude Code 的各個槽位使用哪個模型；留空的同主模型。';
+
+  @override
+  String get editorSlotMain => '主模型';
+
+  @override
+  String get editorSlotDefault => '預設模型';
+
+  @override
+  String get editorSlotHaiku => 'Haiku（背景）';
+
+  @override
+  String get editorSlotSubagent => '子代理';
+
+  @override
+  String get editorSameAsMain => '同主模型';
+
+  @override
+  String get editorPickModel => '從清單選擇';
+
+  @override
+  String get editorExtraEnv => '額外環境變數';
+
+  @override
+  String get editorExtraEnvHint =>
+      '只注入 Claude Code。端點、Key 這類變數由路由本身管理，不能在這裡覆蓋。';
+
+  @override
+  String get editorExtraEnvField => '變數';
+
+  @override
+  String get editorExtraEnvFormat => '每行一個 KEY=VALUE';
+
+  @override
+  String editorEnvLine(String line) {
+    return '不是 KEY=VALUE：$line';
+  }
+
+  @override
+  String editorEnvBadName(String name) {
+    return '「$name」不是有效的環境變數名稱（以大寫字母開頭，只能有大寫字母、數字、底線）';
+  }
+
+  @override
+  String editorEnvReserved(String name) {
+    return '「$name」由路由本身管理，不能在帳號裡覆蓋';
+  }
+
+  @override
+  String get editorAdopt => '併入舊版端點';
+
+  @override
+  String editorAdopted(String name) {
+    return '併入舊版端點「$name」';
+  }
+
+  @override
+  String get editorAdoptUndo => '不併入';
+
+  @override
+  String get editorAdoptHint => '選一個舊版端點和它使用的協定：它會成為這個帳號在該協定的端點，Key 一起帶過來。';
+
+  @override
+  String get editorAdoptProtocol => '它使用的協定';
+
+  @override
+  String get editorAdoptAction => '併入';
+
+  @override
+  String get editorLegacyTitle => '舊版端點';
+
+  @override
+  String get editorLegacyBody => '它是在帳號功能之前建立的，沒有標明協定。開啟它使用的協定，儲存後就成為帳號。';
+
+  @override
+  String get editorConflictTitle => '在別處被修改了';
+
+  @override
+  String get editorConflictBody => '你編輯時，電腦或另一台裝置修改了這個帳號。重新載入會捨棄這裡的修改。';
+
+  @override
+  String get editorReload => '重新載入';
+
+  @override
+  String editorReloadFailed(String error) {
+    return '重新讀取失敗：$error';
+  }
+
+  @override
+  String get editorDeletedElsewhere => '這個帳號已在別處刪除。';
+
+  @override
+  String get editorKeyRequired => '換了伺服器位址，需要重新填寫 API Key';
+
+  @override
+  String get editorKeyRequiredBody =>
+      '已儲存的 Key 不能帶到新的位址。重新填寫 API Key，或清除已儲存的 Key，再儲存。';
+
+  @override
+  String editorFixFields(int count) {
+    return '有 $count 處需要修改';
+  }
+
+  @override
+  String get editorStatusConflict => '這個帳號在別處被修改過：到頂端重新載入';
+
+  @override
+  String get editorStatusRefused => '沒有儲存：原因見頂端';
+
+  @override
+  String editorTooLong(int limit) {
+    return '最多 $limit 個字元';
+  }
+
+  @override
+  String editorTooMany(int limit) {
+    return '最多 $limit 項';
+  }
+
+  @override
+  String editorTooManyModels(int limit) {
+    return '最多 $limit 個模型';
+  }
+
+  @override
+  String editorTooManyEnv(int limit) {
+    return '最多 $limit 個變數';
+  }
+
+  @override
+  String get editorEmpty => '不能空白';
+
+  @override
+  String get editorKeyInvalid => '只能是可列印的 ASCII 字元，不能有空格';
+
+  @override
+  String get editorUrlInvalid => '不能有空白或控制字元';
+
+  @override
+  String get editorControlChars => '不能含控制字元';
+
+  @override
+  String editorProblemIn(String item, String problem) {
+    return '$item：$problem';
+  }
+
+  @override
+  String get editorDiscardTitle => '捨棄修改？';
+
+  @override
+  String get editorDiscardBody => '這裡的修改還沒有儲存。';
+
+  @override
+  String get editorUnknownProtocol =>
+      '這個帳號使用了這個版本的 App 不認識的協定：請在電腦上編輯，或更新 App。';
+
+  @override
+  String editorProtocolTwice(String protocol) {
+    return '$protocol 端點重複了';
+  }
+
+  @override
+  String get errProviderUnsupported => '這台電腦不支援指定帳號的模型，請重新選擇模型。';
+
+  @override
+  String get backendKeyNotLocated => 'Key 已建立，但之後的清單中找不到它。建立另一把之前，請先查看現有的 Key。';
+
+  @override
+  String get backendNoKey => '伺服器沒有回傳 Key';
 }

@@ -194,23 +194,62 @@ class ActionGroup extends StatelessWidget {
       ]);
 }
 
+/// Whether every one of [items] fits on a choice chip of [constraints]'
+/// width: a chip's label is one line, and what does not fit is cut off.
+bool _chipsFit(BuildContext context, BoxConstraints constraints, List<GroupItem<Object?>> items) {
+  if (!constraints.hasBoundedWidth) return true;
+  final style = context.text.labelLarge;
+  final scaler = MediaQuery.textScalerOf(context);
+  for (final item in items) {
+    final painter = TextPainter(text: TextSpan(text: item.label, style: style), textDirection: TextDirection.ltr, textScaler: scaler, maxLines: 1)
+      ..layout();
+    // 8dp padding and 8dp label padding each side, the outline, and the
+    // 18dp check (or avatar) with its gap.
+    final chip = painter.width + 8 * 4 + 2 + 18 + 4;
+    painter.dispose();
+    if (chip > constraints.maxWidth) return false;
+  }
+  return true;
+}
+
 /// Pick one of a few options — a model, an effort level. M3 Expressive: a
 /// connected button group with the selection morphing; M3: choice chips
-/// (which wrap, where a segmented button would not fit).
+/// (which wrap, where a segmented button would not fit). An option too long
+/// for a chip of the width (large text, a long name) turns the group into a
+/// list of radio rows, where it can wrap. A lone option is a chip in either
+/// style: a group of one would fill the width, picked, and read as the
+/// page's main action.
 class ChoiceGroup<T> extends StatelessWidget {
-  const ChoiceGroup({super.key, required this.items, required this.selected, required this.onSelected});
+  const ChoiceGroup({
+    super.key,
+    required this.items,
+    required this.selected,
+    required this.onSelected,
+    this.wrap = false,
+    this.alongside = const [],
+  });
 
   final List<GroupItem<T>> items;
   final T? selected;
   final ValueChanged<T?> onSelected;
 
+  /// Always as chips: for one choice spread over several groups, which must
+  /// look alike whether or not each fits on a line.
+  final bool wrap;
+
+  /// With [wrap]: the options of the other groups the same choice is spread
+  /// over. Where any one of theirs or this group's is too long for a chip,
+  /// every group lists its options as rows — not some as chips and some as
+  /// rows.
+  final List<GroupItem<Object?>> alongside;
+
   @override
   Widget build(BuildContext context) {
     final index = items.indexWhere((item) => item.value == selected);
-    if (context.design.expressive) {
+    if (context.design.expressive && !wrap && items.length > 1) {
       return LayoutBuilder(builder: (context, constraints) {
         final fit = _fit(context, constraints, items);
-        if (fit == _Fit.none) return _chips();
+        if (fit == _Fit.none) return _chipsOrList(context, constraints);
         final icons = fit == _Fit.icons;
         return M3EButtonGroup(
           type: M3EButtonGroupType.connected,
@@ -234,10 +273,12 @@ class ChoiceGroup<T> extends StatelessWidget {
         );
       });
     }
-    return _chips();
+    return LayoutBuilder(builder: _chipsOrList);
   }
 
-  Widget _chips() => Wrap(spacing: Gap.sm, runSpacing: Gap.xs, children: [
+  Widget _chipsOrList(BuildContext context, BoxConstraints constraints) {
+    if (_chipsFit(context, constraints, [...items, ...alongside])) {
+      return Wrap(spacing: Gap.sm, runSpacing: Gap.xs, children: [
         for (final item in items)
           ChoiceChip(
             label: Text(item.label),
@@ -246,6 +287,25 @@ class ChoiceGroup<T> extends StatelessWidget {
             onSelected: item.enabled ? (_) => onSelected(item.value) : null,
           ),
       ]);
+    }
+    // The rows line up with the controls around the group.
+    return Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+      for (final item in items)
+        Semantics(
+          inMutuallyExclusiveGroup: true,
+          checked: item.value == selected,
+          child: ListTile(
+            contentPadding: EdgeInsets.zero,
+            minTileHeight: 48,
+            enabled: item.enabled,
+            selected: item.value == selected,
+            leading: Icon(item.value == selected ? Icons.radio_button_checked_rounded : Icons.radio_button_unchecked_rounded),
+            title: Text(item.label),
+            onTap: () => onSelected(item.value),
+          ),
+        ),
+    ]);
+  }
 }
 
 /// One entry of the send button's menu.
@@ -289,10 +349,11 @@ class SendButton extends StatelessWidget {
           for (final item in menu)
             M3ESplitButtonItem(
               value: item.value,
+              // The menu is only so wide: a long label (large text) wraps.
               child: Row(mainAxisSize: MainAxisSize.min, children: [
                 Icon(item.icon, size: 20),
                 const SizedBox(width: Gap.md),
-                Text(item.label),
+                Flexible(child: Text(item.label)),
               ]),
             ),
         ],

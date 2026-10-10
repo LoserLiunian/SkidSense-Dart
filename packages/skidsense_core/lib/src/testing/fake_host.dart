@@ -97,6 +97,9 @@ class FakeHost {
 
   List<String> scopes;
   List<String> methods = ['sessions.list', 'subscribe'];
+
+  /// `welcome.features`; null leaves the field out, as a host from before it.
+  List<String>? features;
   Handler handler = (method, params) => true;
 
   final List<(String, Object?)> calls = [];
@@ -169,6 +172,7 @@ class FakeHost {
         'device': {'id': 'dev-1', 'scopes': scopes},
         'user': {'id': 42, 'name': 'liunian'},
         'methods': methods,
+        'features': ?features,
         'future-field': 'ignored',
       }));
       try {

@@ -37,6 +37,18 @@ void main() {
     }
   });
 
+  test("fetching models is called one thing all over the editor, in either Chinese", () {
+    for (final (locale, verb, other) in [(hans, '获取', '取得'), (hant, '取得', '獲取')]) {
+      final l = lookupL10n(locale);
+      final said = [l.editorFetch, l.editorFetching, l.editorFetchFailed, l.editorFetched(3), l.editorFetchedSome(3, 2), l.editorModelsHint, l.editorPresetHint];
+      for (final line in said) {
+        expect(line, contains(verb), reason: line);
+        expect(line, isNot(contains(other)), reason: line);
+        expect(line, isNot(contains('拿到')), reason: line);
+      }
+    }
+  });
+
   test('the backend hears the same language the app shows', () {
     expect(backendLanguage(AppLanguage.simplifiedChinese, const [Locale('en')]), 'zh-CN');
     expect(backendLanguage(AppLanguage.traditionalChinese, const [Locale('en')]), 'zh-TW');

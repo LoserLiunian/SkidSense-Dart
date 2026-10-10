@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:math' as math;
 
 import 'package:flutter/services.dart';
 import 'package:skidsense_core/skidsense_core.dart';
@@ -12,10 +13,13 @@ import '../kit/actions.dart';
 import '../kit/containers.dart';
 import '../kit/dialogs.dart';
 import '../kit/feedback.dart';
+import '../kit/forms.dart';
 import '../kit/scaffold.dart';
 import '../material.dart';
 import '../theme/tokens.dart';
+import 'cloud_sheets.dart';
 import 'host_shell.dart';
+import 'models_pane.dart';
 import 'terminal_screen.dart';
 import 'transcript.dart';
 
@@ -105,6 +109,12 @@ class _SessionScreenState extends State<SessionScreen> {
     if (_scroll.hasClients) {
       unawaited(_scroll.animateTo(0, duration: context.design.motion.spatial.duration, curve: context.design.motion.spatial.curve));
     }
+  }
+
+  /// The models tab, where cloud models are assigned.
+  void _openModels() {
+    if (!widget.embedded) Navigator.of(context).pop();
+    context.showInShell(4);
   }
 
   @override
@@ -205,7 +215,13 @@ class _SessionScreenState extends State<SessionScreen> {
             );
           }),
           ),
-          Composer(sessionKey: widget.sessionKey, agent: row?.agent ?? '', onSent: _jumpToLatest),
+          Composer(
+            sessionKey: widget.sessionKey,
+            agent: row?.agent ?? '',
+            workdir: workdir,
+            onSent: _jumpToLatest,
+            onOpenModels: state.can('accounts.list') ? _openModels : null,
+          ),
         ])),
       );
     });
@@ -457,54 +473,205 @@ class _ApprovalCardState extends State<ApprovalCard> {
 
 /// The send options chosen for the next prompt.
 class _SendOptions {
+  /// The model picked from the menu, null for the default — and what its
+  /// chip says: the menu's label, not the raw id.
   String? model;
+  String? modelLabel;
+
+  /// The account or assignment serving it (`ModelOption.providerId`), sent
+  /// with it — kept only from a host that checks it ([_pinning]).
+  String? providerId;
   String? effort;
   String? approvalMode;
+
+  /// [label] in place of the option's own (a cloud model's, [cloudModelLabel]).
+  void pick(ModelOption? option, {required bool pinning, String? label}) {
+    model = option?.id;
+    modelLabel = label ?? (option == null || option.label.isEmpty ? option?.id : option.label);
+    providerId = pinning ? option?.providerId : null;
+  }
 }
+
+/// Whether the host takes and checks `turn.prompt`'s `providerId` (spec
+/// §6.1). Only then is a pick pinned to its endpoint, and another endpoint's
+/// model offered: a host before it would run that model on the default one.
+bool _pinning(AppController app) => app.state.welcome?.supports(Features.promptProviderId) ?? false;
+
+/// A model as the menu tells two apart: two accounts serve the same id.
+typedef _ModelKey = ({String? providerId, String id});
+
+_ModelKey _keyOf(ModelOption option, bool pinning) => (providerId: pinning ? option.providerId : null, id: option.id);
+
+/// A cloud model as the menu and its chip call it: its id — the heading
+/// says it is assigned — and the key's name only where two assignments offer
+/// the same id. Its label names the assignment in the computer's words
+/// (`{id} · 第一方 · {agent} · {key}`).
+String cloudModelLabel(L10n l, ModelOption option, List<ModelOption> offered) {
+  if (offered.where((other) => other.id == option.id).length < 2) return option.id;
+  final prefix = '${option.id} · ';
+  final name = option.label.startsWith(prefix) ? option.label.substring(prefix.length) : option.label;
+  final key = cloudAssignmentOf(name)?.key;
+  return '${option.id} · ${key == null ? name : assignedKeyName(l, key)}';
+}
+
+/// What the menu offers of [catalog].
+List<ModelOption> _offered(ModelCatalog catalog, bool pinning) =>
+    [for (final option in catalog.models) if (pinning || option.group != 'other') option];
 
 /// Send, steer or stop. `approvalMode` is offered only when the device may
 /// approve at all — a device that cannot approve must not be able to turn
 /// approval off (spec §7).
+///
+/// A `/` typed at the start or after a space opens the agent's commands over
+/// the input, as on the desktop (`Composer.tsx`): a pick fills in `/name `,
+/// and nothing is sent until Send.
 class Composer extends StatefulWidget {
-  const Composer({super.key, required this.sessionKey, required this.agent, required this.onSent});
+  const Composer({
+    super.key,
+    required this.sessionKey,
+    required this.agent,
+    required this.workdir,
+    required this.onSent,
+    this.onOpenModels,
+  });
 
   final String sessionKey;
   final String agent;
+
+  /// The session's workspace: where its commands are read.
+  final String workdir;
   final VoidCallback onSent;
+
+  /// To the models tab, where cloud models are assigned; null where there
+  /// is none.
+  final VoidCallback? onOpenModels;
 
   @override
   State<Composer> createState() => _ComposerState();
 }
 
 class _ComposerState extends State<Composer> {
+  late final AppController _app = context.app;
   final TextEditingController _text = TextEditingController();
+  late final FocusNode _focus = FocusNode(debugLabel: 'composer', onKeyEvent: _onKey);
   final _SendOptions _options = _SendOptions();
-  ModelCatalog? _catalog;
-  String? _catalogFor;
   bool _busy = false;
   String? _notice;
   bool _noticeIsError = true;
+
+  /// The agent's model menu (`models.list`): read when the options open, and
+  /// again when the host says the routing or the accounts changed (spec
+  /// §6.4) — while they are open, or while a model is picked that the menu
+  /// may no longer offer.
+  final StateValue<Loaded<ModelCatalog>> _catalog = StateValue<Loaded<ModelCatalog>>(const Loaded<ModelCatalog>());
+
+  /// The agent [_catalog] is current for; null once it may be behind.
+  String? _catalogFor;
+  int _catalogReads = 0;
+  bool _optionsOpen = false;
+  StreamSubscription<int>? _modelsChanged;
+
+  /// Where the agent's calls went at the last read: `kind:accountId`.
+  String? _route;
+
+  /// The `/` menu. Always up: it draws nothing while there is no menu.
+  final OverlayPortalController _slash = OverlayPortalController(debugLabel: 'slash');
+  List<SlashCommand> _commands = const [];
+  bool _commandsLoading = false;
+
+  /// What the last build made of the text: the command name typed at the
+  /// caret, the commands it matches and the one Enter would pick.
+  String? _slashQuery;
+  List<SlashCommand> _shown = const [];
+  int _slashIndex = 0;
+  bool _slashOpen = false;
+
+  /// The text the menu was closed on (Esc, a pick): shut until it changes.
+  String? _slashClosedOn;
 
   @override
   void initState() {
     super.initState();
     _text.addListener(() => setState(() {}));
+    _focus.addListener(() => setState(() {}));
+    _modelsChanged = _app.modelsRevision.changes.listen((_) => _modelsMayHaveChanged());
+    _slash.show();
+  }
+
+  @override
+  void didUpdateWidget(Composer old) {
+    super.didUpdateWidget(old);
+    if (old.agent != widget.agent) {
+      // Another agent's menu and pick are not this one's.
+      _catalogFor = null;
+      _route = null;
+      _catalog.value = const Loaded<ModelCatalog>();
+      _options.pick(null, pinning: false);
+    }
+    if (old.agent != widget.agent || old.workdir != widget.workdir) _commands = const [];
   }
 
   @override
   void dispose() {
+    unawaited(_modelsChanged?.cancel());
+    unawaited(_catalog.close());
     _text.dispose();
+    _focus.dispose();
     super.dispose();
   }
 
-  Future<void> _loadCatalog() async {
-    if (widget.agent.isEmpty || _catalogFor == widget.agent) return;
-    _catalogFor = widget.agent;
-    try {
-      final catalog = await context.app.models(widget.agent);
-      if (mounted) setState(() => _catalog = catalog);
-    } catch (_) {}
+  // --- models -------------------------------------------------------------------------
+
+  void _modelsMayHaveChanged() {
+    _catalogFor = null;
+    if (_optionsOpen || _options.model != null) unawaited(_loadCatalog());
   }
+
+  Future<void> _loadCatalog() async {
+    final agent = widget.agent;
+    if (agent.isEmpty || _catalogFor == agent) return;
+    _catalogFor = agent;
+    final read = ++_catalogReads;
+    _catalog.value = Loaded<ModelCatalog>(value: _catalog.value.value, loading: true);
+    try {
+      final catalog = await _app.models(agent);
+      if (!mounted || read != _catalogReads) return;
+      if (catalog != null) setState(() => _follow(catalog));
+      _catalog.value = Loaded<ModelCatalog>(value: catalog);
+    } catch (error) {
+      if (!mounted || read != _catalogReads) return;
+      _catalogFor = null;
+      _catalog.value = Loaded<ModelCatalog>(value: _catalog.value.value, error: error);
+    }
+  }
+
+  /// The pick is kept while the menu still offers it, on the route it was
+  /// picked on. A switch of the agent's account (here or anywhere) makes a
+  /// pick from the old account's list meaningless — and kept, it would read
+  /// as a deliberate pick of the old account: back to the default, as on the
+  /// desktop (`SessionPane.tsx`).
+  void _follow(ModelCatalog catalog) {
+    final route = catalog.route;
+    final now = route == null ? null : '${route.kind}:${route.accountId ?? ''}';
+    final moved = _route != null && now != null && now != _route;
+    if (now != null) _route = now;
+    final model = _options.model;
+    if (model == null) return;
+    final pinning = _pinning(_app);
+    final picked = (providerId: _options.providerId, id: model);
+    if (moved || !_offered(catalog, pinning).any((option) => _keyOf(option, pinning) == picked)) {
+      _options.pick(null, pinning: pinning);
+    }
+  }
+
+  void _pickModel(ModelOption? option) {
+    final catalog = _catalog.value.value;
+    final pinning = _pinning(_app);
+    final label = option != null && catalog != null && catalog.route?.kind == 'cloud' ? cloudModelLabel(context.l10n, option, _offered(catalog, pinning)) : null;
+    if (mounted) setState(() => _options.pick(option, pinning: pinning, label: label));
+  }
+
+  // --- sending ------------------------------------------------------------------------
 
   void _say(String message, {bool error = true}) => setState(() {
         _notice = message;
@@ -528,6 +695,7 @@ class _ComposerState extends State<Composer> {
         model: _options.model,
         effort: _options.effort,
         approvalMode: _options.approvalMode,
+        providerId: _options.providerId,
       );
       if (!mounted) return;
       switch (outcome) {
@@ -576,14 +744,98 @@ class _ComposerState extends State<Composer> {
 
   Future<void> _showOptions() async {
     unawaited(_loadCatalog());
+    _optionsOpen = true;
     await showAppSheet<void>(context, builder: (_) => _OptionsSheet(
           options: _options,
-          catalog: () => _catalog,
+          catalog: _catalog,
           agent: widget.agent,
-          canApprove: context.app.state.canScope(Scopes.approve),
-          reload: _loadCatalog,
+          canApprove: _app.state.canScope(Scopes.approve),
+          onModel: _pickModel,
+          onOpenModels: widget.onOpenModels,
         ));
+    _optionsOpen = false;
     if (mounted) setState(() {});
+  }
+
+  // --- the `/` menu -------------------------------------------------------------------
+
+  /// Offered by a host that lists the commands (one from before does not),
+  /// on a live connection, before a turn runs: what steers it is no command.
+  bool _slashOffered(AppState state, bool running) =>
+      state.connected &&
+      !running &&
+      state.canScope(Scopes.prompt) &&
+      state.can('commands.list') &&
+      widget.agent.isNotEmpty &&
+      widget.workdir.isNotEmpty;
+
+  /// The command name being typed at the caret, or null.
+  String? _typedCommand() {
+    final text = _text.text;
+    final selection = _text.selection;
+    if (!_focus.hasFocus || text == _slashClosedOn || (selection.isValid && !selection.isCollapsed)) return null;
+    return slashQuery(text, selection.isValid ? selection.baseOffset : null);
+  }
+
+  /// Read when the menu opens, not on each key: listing them can start the
+  /// CLI (spec §7.1). A failure leaves the menu shut and the text as typed.
+  Future<void> _loadCommands() async {
+    final (agent, workdir) = (widget.agent, widget.workdir);
+    setState(() => _commandsLoading = true);
+    try {
+      final commands = await _app.config.commands(agent, workdir);
+      if (mounted && agent == widget.agent && workdir == widget.workdir) setState(() => _commands = commands);
+    } catch (_) {
+    } finally {
+      if (mounted) setState(() => _commandsLoading = false);
+    }
+  }
+
+  void _pickCommand(SlashCommand command) {
+    final selection = _text.selection;
+    final next = insertCommand(_text.text, command.name, selection.isValid ? selection.baseOffset : null);
+    _slashClosedOn = next.text;
+    _text.value = TextEditingValue(text: next.text, selection: TextSelection.collapsed(offset: next.caret));
+    if (!_focus.hasFocus) _focus.requestFocus();
+  }
+
+  /// ↑ ↓ through the commands, Enter or Tab to pick, Esc to close — the keys
+  /// a hardware keyboard has on the desktop.
+  KeyEventResult _onKey(FocusNode node, KeyEvent event) {
+    if (!_slashOpen || (event is! KeyDownEvent && event is! KeyRepeatEvent)) return KeyEventResult.ignored;
+    final key = event.logicalKey;
+    if (key == LogicalKeyboardKey.escape) {
+      setState(() => _slashClosedOn = _text.text);
+      return KeyEventResult.handled;
+    }
+    if (_shown.isEmpty) return KeyEventResult.ignored;
+    if (key == LogicalKeyboardKey.arrowDown || key == LogicalKeyboardKey.arrowUp) {
+      setState(() => _slashIndex = stepIndex(_shown.length, _slashIndex, key == LogicalKeyboardKey.arrowDown ? 1 : -1));
+      return KeyEventResult.handled;
+    }
+    final enter = (key == LogicalKeyboardKey.enter || key == LogicalKeyboardKey.numpadEnter) && !HardwareKeyboard.instance.isShiftPressed;
+    if (enter || key == LogicalKeyboardKey.tab) {
+      _pickCommand(_shown[_slashIndex]);
+      return KeyEventResult.handled;
+    }
+    return KeyEventResult.ignored;
+  }
+
+  /// The menu over the composer: inset from its edges, as high as the
+  /// window allows up to a few rows.
+  static Widget _placeMenu(BuildContext context, OverlayChildLayoutInfo info, Widget? menu) {
+    if (menu == null || info.childPaintTransform.determinant() == 0) return const SizedBox.shrink();
+    final composer = MatrixUtils.transformRect(info.childPaintTransform, Offset.zero & info.childSize);
+    final room = composer.top - MediaQuery.paddingOf(context).top - Gap.xl;
+    return Positioned(
+      left: composer.left + Gap.sm,
+      width: composer.width - Gap.sm * 2,
+      bottom: info.overlaySize.height - composer.top + Gap.xs,
+      child: ConstrainedBox(
+        constraints: BoxConstraints(maxHeight: math.max(kMinInteractiveDimension, math.min(room, 320))),
+        child: menu,
+      ),
+    );
   }
 
   @override
@@ -607,8 +859,25 @@ class _ComposerState extends State<Composer> {
       return Watch(app.liveRevision, builder: (context, _) {
         final running = app.liveTurn.snapshot?.running ?? false;
         final hasText = _text.text.trim().isNotEmpty;
+
+        final query = _slashOffered(app.state, running) ? _typedCommand() : null;
+        if (query != _slashQuery) _slashIndex = 0;
+        if (query != null && _slashQuery == null) {
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (mounted) unawaited(_loadCommands());
+          });
+        }
+        _slashQuery = query;
+        _shown = query == null ? const [] : rankCommands(_commands, query);
+        _slashIndex = _shown.isEmpty ? 0 : math.min(_slashIndex, _shown.length - 1);
+        // While the first list is on its way the menu says so, rather than
+        // appearing a moment after the `/` as if from nowhere.
+        _slashOpen = query != null && (_shown.isNotEmpty || (_commandsLoading && _commands.isEmpty));
+        final menu = _slashOpen ? _SlashMenu(items: _shown, active: _slashIndex, onPick: _pickCommand) : null;
+
         final field = TextField(
           controller: _text,
+          focusNode: _focus,
           minLines: 1,
           maxLines: 6,
           enabled: connected,
@@ -680,15 +949,16 @@ class _ComposerState extends State<Composer> {
             Padding(
               padding: const EdgeInsets.only(top: Gap.xs),
               child: Wrap(spacing: Gap.xs, children: [
-                if (_options.model != null) _OptionChip(label: _options.model!, onTap: _showOptions),
+                if (_options.model != null) _OptionChip(label: _options.modelLabel ?? _options.model!, onTap: _showOptions),
                 if (_options.effort != null) _OptionChip(label: l.effortLevel(_options.effort!), onTap: _showOptions),
                 if (_options.approvalMode != null) _OptionChip(label: _approvalLabel(l, _options.approvalMode!), onTap: _showOptions),
               ]),
             ),
         ]);
+        final Widget bar;
         if (design.expressive) {
           // M3 Expressive: the composer floats, a rounded toolbar over the transcript.
-          return SafeArea(
+          bar = SafeArea(
             top: false,
             child: Container(
               margin: const EdgeInsets.fromLTRB(Gap.sm, 0, Gap.sm, Gap.sm),
@@ -701,13 +971,19 @@ class _ComposerState extends State<Composer> {
               child: content,
             ),
           );
+        } else {
+          bar = Material(
+            color: colors.surfaceContainer,
+            child: SafeArea(
+              top: false,
+              child: Padding(padding: const EdgeInsets.fromLTRB(Gap.lg, Gap.sm, Gap.sm, Gap.sm), child: content),
+            ),
+          );
         }
-        return Material(
-          color: colors.surfaceContainer,
-          child: SafeArea(
-            top: false,
-            child: Padding(padding: const EdgeInsets.fromLTRB(Gap.lg, Gap.sm, Gap.sm, Gap.sm), child: content),
-          ),
+        return OverlayPortal.overlayChildLayoutBuilder(
+          controller: _slash,
+          overlayChildBuilder: (context, info) => _placeMenu(context, info, menu),
+          child: bar,
         );
       });
     });
@@ -736,89 +1012,447 @@ class _OptionChip extends StatelessWidget {
       );
 }
 
+/// Where a catalog's calls go, said under the options' heading — as the
+/// desktop's model chip says it (`RunPickers.tsx`).
+String _routeLine(L10n l, CatalogRoute route) => switch (route.kind) {
+      'cloud' => l.composerRouteCloud,
+      'account' => l.composerRouteAccount(route.accountName ?? ''),
+      'official' => l.composerRouteOfficial,
+      _ => l.composerRouteCli,
+    };
+
+/// A labelled group of the options sheet.
+class _Section extends StatelessWidget {
+  const _Section({required this.label, required this.child, this.below});
+
+  final Widget label;
+  final Widget child;
+  final Widget? below;
+
+  @override
+  Widget build(BuildContext context) => Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+        label,
+        const SizedBox(height: Gap.sm),
+        child,
+        if (below != null) ...[const SizedBox(height: Gap.sm), below!],
+      ]);
+}
+
+/// What the next prompt goes with: in local mode the agent's account (the
+/// computer's setting, for all its conversations), the model — grouped by
+/// where it runs, as the desktop's menu — the effort and the approval mode.
 class _OptionsSheet extends StatefulWidget {
-  const _OptionsSheet({required this.options, required this.catalog, required this.agent, required this.canApprove, required this.reload});
+  const _OptionsSheet({
+    required this.options,
+    required this.catalog,
+    required this.agent,
+    required this.canApprove,
+    required this.onModel,
+    required this.onOpenModels,
+  });
 
   final _SendOptions options;
-  final ModelCatalog? Function() catalog;
+  final StateValue<Loaded<ModelCatalog>> catalog;
   final String agent;
   final bool canApprove;
-  final Future<void> Function() reload;
+  final ValueChanged<ModelOption?> onModel;
+  final VoidCallback? onOpenModels;
 
   @override
   State<_OptionsSheet> createState() => _OptionsSheetState();
 }
 
 class _OptionsSheetState extends State<_OptionsSheet> {
+  late final AppController _app = context.app;
+  void Function()? _unwatch;
+
+  /// A choice sent and not read back yet: shown over the accounts it was
+  /// sent over, until they are read again.
+  AccountChoice? _sent;
+  AccountsSnapshot? _sentOver;
+  bool _sending = false;
+  String? _accountError;
+
   @override
   void initState() {
     super.initState();
-    unawaited(widget.reload().then((_) {
-      if (mounted) setState(() {});
-    }));
+    // The account menu is current while it shows (spec §6.4).
+    if (_app.state.can('accounts.list')) _unwatch = _app.config.watchAccounts();
+    // Whether the backend knows `settings` decides why the menu is locked.
+    if (_app.state.serverScopes == null) unawaited(_app.loadServerScopes());
+  }
+
+  @override
+  void dispose() {
+    _unwatch?.call();
+    super.dispose();
+  }
+
+  Future<void> _setAccount(String agent, AccountChoice choice, AccountsSnapshot over) async {
+    if (_sending || choice == over.choiceFor(agent)) return;
+    final l = context.l10n;
+    setState(() {
+      _sending = true;
+      _sent = choice;
+      _sentOver = over;
+      _accountError = null;
+    });
+    try {
+      final result = await _app.config.setActive(agent, choice);
+      if (mounted && !result.ok) {
+        setState(() {
+          _sent = null;
+          _accountError = result.error ?? l.errUnknown('');
+        });
+      }
+    } catch (error) {
+      if (mounted) {
+        setState(() {
+          _sent = null;
+          _accountError = l.error(error);
+        });
+      }
+    } finally {
+      if (mounted) setState(() => _sending = false);
+    }
+  }
+
+  /// Local mode, an agent that takes an account: which one — the same
+  /// setting as the models tab's, made on the computer.
+  Widget? _account(BuildContext context, CatalogRoute? route, AccountsSnapshot? snapshot) {
+    if (route == null || route.kind == 'cloud' || snapshot == null) return null;
+    final harness = snapshot.harnesses.where((candidate) => candidate.agent == widget.agent).firstOrNull;
+    if (harness == null) return null;
+    final l = context.l10n;
+    final state = _app.state;
+    final writable = state.can('accounts.setActive') && state.connected;
+    final enabled = writable && !_sending;
+    final shown = _sent != null && identical(snapshot, _sentOver) ? _sent : snapshot.choiceFor(harness.agent);
+    return _Section(
+      label: FieldLabel(
+        l.composerAccount,
+        // Why it cannot be switched from here, as the models tab says it.
+        hint: writable
+            ? l.composerAccountHint(harness.label.isEmpty ? harness.agent : harness.label)
+            : !state.connected
+                ? l.offlineTitle
+                : settingsReadOnlyReason(l, state),
+      ),
+      below: _accountError == null ? null : InlineBanner(message: _accountError!, onDismiss: () => setState(() => _accountError = null)),
+      child: ChoiceGroup<AccountChoice>(
+        items: [
+          GroupItem(value: const AccountChoice.cli(), label: l.modelsChoiceCli, enabled: enabled),
+          if (harness.official) GroupItem(value: const AccountChoice.official(), label: l.modelsChoiceOfficial, enabled: enabled),
+          for (final row in accountsFor(harness, snapshot)) GroupItem(value: AccountChoice.account(row.id), label: row.name, enabled: enabled),
+        ],
+        selected: shown,
+        onSelected: (choice) {
+          if (choice != null && enabled) unawaited(_setAccount(harness.agent, choice, snapshot));
+        },
+      ),
+    );
+  }
+
+  /// The models, grouped by where they run: in cloud mode only what is
+  /// assigned; in local mode the account's (or the CLI's own), then — from a
+  /// host that takes it — another endpoint's, for this conversation alone.
+  List<Widget> _models(BuildContext context, Loaded<ModelCatalog> loaded) {
+    final l = context.l10n;
+    final catalog = loaded.value;
+    if (catalog == null) {
+      return [
+        _Section(
+          label: FieldLabel(l.model),
+          child: loaded.error == null
+              ? LoadingRow(l.composerModelsLoading, padding: const EdgeInsets.symmetric(vertical: Gap.xs))
+              : Text(l.noModels, style: context.text.bodyMedium?.copyWith(color: context.colors.onSurfaceVariant)),
+        ),
+      ];
+    }
+    final pinning = _pinning(_app);
+    final offered = _offered(catalog, pinning);
+    final route = catalog.route;
+    final cloud = route?.kind == 'cloud';
+    final options = widget.options;
+    final picked = options.model == null ? null : (providerId: options.providerId, id: options.model!);
+    final named = route?.defaultModel;
+    // On an account and in cloud mode even the default is the host's to
+    // decide — the account's main model, the first assigned: say which.
+    final byDefault = named != null && named.isNotEmpty && (cloud || route?.kind == 'account') ? l.modelDefaultNamed(named) : l.modelDefault;
+    // The account's own models go by their ids — the heading names the account.
+    List<GroupItem<_ModelKey?>> itemsOf(List<ModelOption> models, {bool withDefault = false}) => [
+          if (withDefault) GroupItem(value: null, label: byDefault),
+          for (final option in models)
+            GroupItem(
+              value: _keyOf(option, pinning),
+              label: cloud
+                  ? cloudModelLabel(l, option, offered)
+                  : option.label.isEmpty || option.group == 'account'
+                      ? option.id
+                      : option.label,
+            ),
+        ];
+    // One pick over several groups: all of them chips, or — where any one
+    // option of any of them would not fit on a chip — all of them rows.
+    Widget group(List<GroupItem<_ModelKey?>> items, {List<GroupItem<_ModelKey?>> alongside = const []}) => ChoiceGroup<_ModelKey?>(
+          wrap: true,
+          items: items,
+          alongside: alongside,
+          selected: picked,
+          onSelected: (key) {
+            widget.onModel(key == null ? null : offered.firstWhere((option) => _keyOf(option, pinning) == key));
+            setState(() {});
+          },
+        );
+
+    if (cloud) {
+      if (offered.isEmpty) {
+        final open = widget.onOpenModels;
+        // Inside a sheet, an empty list is a note under its heading, as
+        // the sheets' other empty lists are — not a page's empty state.
+        return [
+          _Section(
+            label: FieldLabel(l.composerModelsCloud),
+            child: InlineBanner(
+              tone: BannerTone.info,
+              // Not `cloud_off`: that is a computer out of reach.
+              icon: Icons.cloud_queue_outlined,
+              title: l.composerCloudEmptyTitle,
+              message: l.composerCloudEmptyBody,
+              action: open == null
+                  ? null
+                  : AppButton(
+                      label: l.composerOpenModels,
+                      icon: Icons.layers_rounded,
+                      emphasis: ActionEmphasis.tonal,
+                      onPressed: () {
+                        Navigator.of(context).pop();
+                        open();
+                      },
+                    ),
+            ),
+          ),
+        ];
+      }
+      return [_Section(label: FieldLabel(l.composerModelsCloud), child: group(itemsOf(offered, withDefault: true)))];
+    }
+    final account = route?.kind == 'account';
+    final own = itemsOf([for (final option in offered) if (option.group != 'other') option], withDefault: true);
+    final others = itemsOf([for (final option in offered) if (option.group == 'other') option]);
+    return [
+      _Section(
+        label: FieldLabel(route == null
+            ? l.model
+            : account
+                ? l.composerModelsAccount(route.accountName ?? '')
+                : l.composerModelsCli),
+        child: group(own, alongside: others),
+      ),
+      if (others.isNotEmpty)
+        _Section(
+          label: FieldLabel(account ? l.composerModelsOtherAccounts : l.composerModelsOtherEndpoints, hint: l.composerModelsOtherHint),
+          child: group(others, alongside: own),
+        ),
+    ];
   }
 
   @override
   Widget build(BuildContext context) {
     final l = context.l10n;
-    final catalog = widget.catalog();
     final levels = effortLevels(widget.agent);
     final options = widget.options;
-    final account = catalog?.route?.accountName;
-    return SingleChildScrollView(
-      padding: const EdgeInsets.only(bottom: Gap.xl),
-      child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-        SheetHeader(l.options),
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: Gap.xl),
-          child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-            Text(account == null ? l.model : l.modelAccount(account), style: context.text.labelLarge),
-            const SizedBox(height: Gap.sm),
-            if (catalog == null || catalog.models.isEmpty)
-              Text(l.noModels, style: context.text.bodyMedium?.copyWith(color: context.colors.onSurfaceVariant))
-            else
-              ChoiceGroup<String?>(
-                items: [
-                  GroupItem(value: null, label: l.modelDefault),
-                  for (final model in catalog.models) GroupItem(value: model.id, label: model.label.isEmpty ? model.id : model.label),
-                ],
-                selected: options.model,
-                onSelected: (value) => setState(() => options.model = value),
+    // The connection and the grant decide whether the account can be
+    // switched: current while the sheet shows.
+    return Watch(_app.states, builder: (context, _) => Watch(widget.catalog, builder: (context, loaded) => Watch(_app.config.accounts, builder: (context, accounts) {
+          final route = loaded.value?.route;
+          final sections = [
+            ?_account(context, route, accounts.value),
+            ..._models(context, loaded),
+            if (levels.isNotEmpty)
+              _Section(
+                label: FieldLabel(l.effort),
+                child: ChoiceGroup<String?>(
+                  items: [
+                    GroupItem(value: null, label: l.modelDefault),
+                    for (final level in levels) GroupItem(value: level, label: l.effortLevel(level)),
+                  ],
+                  selected: options.effort,
+                  onSelected: (value) => setState(() => options.effort = value),
+                ),
               ),
-            if (levels.isNotEmpty) ...[
-              const SizedBox(height: Gap.xl),
-              Text(l.effort, style: context.text.labelLarge),
-              const SizedBox(height: Gap.sm),
-              ChoiceGroup<String?>(
+            _Section(
+              label: FieldLabel(widget.canApprove ? l.approvalMode : l.approvalModeLocked),
+              child: ChoiceGroup<String?>(
                 items: [
-                  GroupItem(value: null, label: l.modelDefault),
-                  for (final level in levels) GroupItem(value: level, label: l.effortLevel(level)),
+                  GroupItem(value: null, label: l.approvalDefault),
+                  if (widget.canApprove) ...[
+                    GroupItem(value: 'acceptEdits', label: l.approvalAcceptEdits),
+                    GroupItem(value: 'plan', label: l.approvalPlan),
+                    GroupItem(value: 'dontAsk', label: l.approvalDontAsk),
+                    GroupItem(value: 'bypassPermissions', label: l.approvalBypass),
+                  ],
                 ],
-                selected: options.effort,
-                onSelected: (value) => setState(() => options.effort = value),
+                selected: options.approvalMode,
+                onSelected: (value) => setState(() => options.approvalMode = value),
               ),
-            ],
-            const SizedBox(height: Gap.xl),
-            Text(widget.canApprove ? l.approvalMode : l.approvalModeLocked, style: context.text.labelLarge),
-            const SizedBox(height: Gap.sm),
-            ChoiceGroup<String?>(
-              items: [
-                GroupItem(value: null, label: l.approvalDefault),
-                if (widget.canApprove) ...[
-                  GroupItem(value: 'acceptEdits', label: l.approvalAcceptEdits),
-                  GroupItem(value: 'plan', label: l.approvalPlan),
-                  GroupItem(value: 'dontAsk', label: l.approvalDontAsk),
-                  GroupItem(value: 'bypassPermissions', label: l.approvalBypass),
-                ],
-              ],
-              selected: options.approvalMode,
-              onSelected: (value) => setState(() => options.approvalMode = value),
             ),
-            const SizedBox(height: Gap.xl),
-            AppButton(label: l.done, expand: true, onPressed: () => Navigator.of(context).pop()),
-          ]),
-        ),
+          ];
+          return SingleChildScrollView(
+            padding: const EdgeInsets.only(bottom: Gap.xl),
+            child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+              SheetHeader(l.options, subtitle: route == null ? null : _routeLine(l, route)),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: Gap.xl),
+                child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+                  for (final section in sections) ...[section, const SizedBox(height: Gap.xl)],
+                  AppButton(label: l.done, expand: true, onPressed: () => Navigator.of(context).pop()),
+                ]),
+              ),
+            ]),
+          );
+        })));
+  }
+}
+
+/// What a command's source is called — or, for a command file, where it is
+/// kept — as the desktop's menu tags it.
+String _commandSource(L10n l, SlashCommand command) => switch (command.scope) {
+      'workspace' => l.slashScopeWorkspace,
+      'global' => l.slashScopeGlobal,
+      _ => switch (command.source) {
+          'skill' => l.slashSourceSkill,
+          'command' => l.slashSourceCommand,
+          _ => l.slashSourceBuiltin,
+        },
+    };
+
+/// Where a skill listed beside the CLI's own comes from (SkidSense's own
+/// go untagged).
+const _commandStores = {'claude': 'Claude Code', 'agents': '.agents', 'codex': 'Codex'};
+
+/// The `/` menu over the composer, best match first: each command's name
+/// and what it takes, what it does, where it comes from and its other
+/// names. Empty while the first list is on its way.
+class _SlashMenu extends StatefulWidget {
+  const _SlashMenu({required this.items, required this.active, required this.onPick});
+
+  final List<SlashCommand> items;
+
+  /// The one Enter or Tab picks.
+  final int active;
+  final ValueChanged<SlashCommand> onPick;
+
+  @override
+  State<_SlashMenu> createState() => _SlashMenuState();
+}
+
+class _SlashMenuState extends State<_SlashMenu> {
+  final ScrollController _scroll = ScrollController();
+  BuildContext? _activeContext;
+
+  @override
+  void dispose() {
+    _scroll.dispose();
+    super.dispose();
+  }
+
+  @override
+  void didUpdateWidget(_SlashMenu old) {
+    super.didUpdateWidget(old);
+    if (old.active == widget.active) return;
+    // The keys move the highlight: keep it in view, or Enter picks a row
+    // nobody sees.
+    final down = widget.active > old.active;
+    WidgetsBinding.instance.addPostFrameCallback((_) => _reveal(down, retry: true));
+  }
+
+  void _reveal(bool down, {required bool retry}) {
+    if (!mounted) return;
+    final target = _activeContext;
+    if (target != null && target.mounted) {
+      unawaited(Scrollable.ensureVisible(
+        target,
+        alignmentPolicy: down ? ScrollPositionAlignmentPolicy.keepVisibleAtEnd : ScrollPositionAlignmentPolicy.keepVisibleAtStart,
+      ));
+    } else if (retry && _scroll.hasClients) {
+      // Wrapped round to a row not built yet: go to its end first.
+      _scroll.jumpTo(widget.active == 0 ? 0 : _scroll.position.maxScrollExtent);
+      WidgetsBinding.instance.addPostFrameCallback((_) => _reveal(down, retry: false));
+    }
+  }
+
+  Widget _row(BuildContext context, int index) {
+    final l = context.l10n;
+    final colors = context.colors;
+    final command = widget.items[index];
+    final active = index == widget.active;
+    final quiet = active ? null : colors.onSurfaceVariant;
+    final hint = command.argumentHint?.trim() ?? '';
+    final description = command.description?.trim() ?? '';
+    final meta = [
+      _commandSource(l, command),
+      ?_commandStores[command.store],
+      if (command.aliases.isNotEmpty) l.slashAliases(command.aliases.map((alias) => '/$alias').join(', ')),
+    ].join(' · ');
+    final tile = ListTile(
+      selected: active,
+      selectedColor: colors.onSecondaryContainer,
+      selectedTileColor: colors.secondaryContainer,
+      onTap: () => widget.onPick(command),
+      title: Text.rich(TextSpan(children: [
+        TextSpan(text: '/${command.name}'),
+        if (hint.isNotEmpty) TextSpan(text: '  $hint', style: context.text.bodyMedium?.mono.copyWith(color: quiet)),
+      ])),
+      subtitle: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        if (description.isNotEmpty) Text(description, maxLines: 2, overflow: TextOverflow.ellipsis),
+        Text(meta, style: context.text.bodySmall?.copyWith(color: quiet)),
       ]),
+    );
+    if (!active) return tile;
+    return Builder(builder: (context) {
+      _activeContext = context;
+      return tile;
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final l = context.l10n;
+    final items = widget.items;
+    // M3 Expressive's rows are rounded: inset, so the highlight keeps clear
+    // of the panel's corners.
+    final inset = context.design.expressive ? Gap.xs : 0.0;
+    // Taps keep the input's focus and caret; Tab stays the input's.
+    return TextFieldTapRegion(
+      child: ExcludeFocus(
+        child: FloatingPanel(
+          child: Semantics(
+            container: true,
+            liveRegion: true,
+            label: items.isEmpty ? l.slashLoading : l.slashCount(items.length),
+            child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+              Padding(
+                padding: EdgeInsets.fromLTRB(Gap.lg + inset, Gap.md, Gap.lg + inset, Gap.xs),
+                child: ExcludeSemantics(
+                  child: Text(l.slashTitle, style: context.text.labelLarge?.copyWith(color: context.colors.onSurfaceVariant)),
+                ),
+              ),
+              if (items.isEmpty)
+                LoadingRow(l.slashLoading, padding: EdgeInsets.fromLTRB(Gap.lg + inset, Gap.sm, Gap.lg + inset, Gap.lg))
+              else
+                Flexible(
+                  child: ListView.builder(
+                    controller: _scroll,
+                    shrinkWrap: true,
+                    padding: EdgeInsets.fromLTRB(inset, 0, inset, Gap.sm),
+                    itemCount: items.length,
+                    itemBuilder: _row,
+                  ),
+                ),
+            ]),
+          ),
+        ),
+      ),
     );
   }
 }

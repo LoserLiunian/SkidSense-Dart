@@ -26,6 +26,28 @@ void main() {
     expect(hant.error(const RelayRejected('unauthorized', message: 'x')), '登入已失效，請重新登入', reason: 'unchanged');
   });
 
+  test('every permission has a name of its own, in every language', () {
+    for (final l in [en, hans, hant]) {
+      for (final scope in Scopes.all) {
+        expect(l.scope(scope), isNot(scope), reason: '$scope in ${l.localeName}');
+      }
+    }
+    expect([en.scope(Scopes.settings), hans.scope(Scopes.settings), hant.scope(Scopes.settings)], ['Models & accounts', '模型与账号', '模型與帳號']);
+  });
+
+  test('a turn pinned to an account, for a computer that cannot take it, asks for the model again', () {
+    const error = RcException('provider-unsupported');
+    expect(hant.error(error), '這台電腦不支援指定帳號的模型，請重新選擇模型。');
+    expect(hans.error(error), '这台电脑不支持指定账号的模型，请重新选择模型。');
+    expect(en.error(error), 'This computer can\'t take a model on a chosen account. Pick the model again.');
+  });
+
+  test('a cloud key made but not found after, and a key the server would not give', () {
+    expect(en.error(const BackendException('key-not-located')), startsWith('The key was created'));
+    expect(hant.error(const BackendException('key-not-located')), startsWith('Key 已建立'));
+    expect(hans.error(const BackendException('no-key')), '服务器没有返回 Key');
+  });
+
   test('remote control turned off on the server', () {
     expect(hant.error(const RcException('companion-disabled')), '伺服器未啟用遠端控制');
     expect(hans.error(const RcException('companion-disabled')), '服务器未启用远程控制');
@@ -108,6 +130,26 @@ void main() {
     expect(hant.error(const BackendException('server', status: 409, message: '裝置已撤銷')), '裝置已撤銷');
     expect(hant.error(const BackendException('http', status: 429, retryAfter: Duration(seconds: 60), fromRefresh: true)), '請求太頻繁，請於 60 秒後再試');
     expect(hant.error(const BackendException('unreachable', base: 'https://ai.surise.cn', fromRefresh: true)), '無法連線到伺服器（https://ai.surise.cn）');
+  });
+
+  test('dollars: cents always, thousands grouped, under a cent not rounded away', () {
+    expect(usdLabel(0), r'$0.00');
+    expect(usdLabel(5), r'$5.00');
+    expect(usdLabel(86.21), r'$86.21');
+    expect(usdLabel(1234.56), r'$1,234.56');
+    expect(usdLabel(1234567.891), r'$1,234,567.89');
+    expect(usdLabel(0.004), r'$0.0040');
+    expect(usdLabel(-12.5), r'-$12.50');
+    expect(usdLabel(double.nan), '—');
+    expect(usdLabel(usdFromQuota(617280000)), r'$1,234.56', reason: '500000 quota units to the dollar');
+  });
+
+  test("a group's ratio, and auto's, which has none", () {
+    expect(en.groupRatio(const TokenGroup(name: 'vip', ratio: 1.5)), '×1.5');
+    expect(en.groupRatio(const TokenGroup(name: 'default', ratio: 1)), '×1');
+    expect(en.groupRatio(const TokenGroup(name: 'svip', ratio: 2.0)), '×2');
+    const auto = TokenGroup(name: 'auto', ratioLabel: '自动');
+    expect([en.groupRatio(auto), hans.groupRatio(auto), hant.groupRatio(auto)], ['Auto', '自动', '自動']);
   });
 
   test('the three ARB files have the same keys', () {
